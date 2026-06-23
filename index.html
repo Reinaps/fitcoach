@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FitCoach</title>
+<style>
+  :root {
+    --bg: #0f0f13; --surface: #1a1a22; --surface2: #22222e; --border: #2e2e3e;
+    --accent-m: #4fc3f7; --accent-f: #f48fb1; --green: #66bb6a;
+    --orange: #ffa726; --red: #ef5350; --text: #e8e8f0; --muted: #888899; --radius: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; padding-bottom: 80px; }
+  .header { background: linear-gradient(135deg,#1a1a2e,#16213e); padding: 16px; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+  .header h1 { font-size: 20px; font-weight: 700; color: #fff; }
+  .header p { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .profile-switcher { display: flex; gap: 8px; padding: 12px 16px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .profile-btn { flex: 1; padding: 10px; border-radius: 10px; border: 2px solid var(--border); background: transparent; color: var(--muted); font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; }
+  .profile-btn.active-m { border-color: var(--accent-m); color: var(--accent-m); background: rgba(79,195,247,0.08); }
+  .profile-btn.active-f { border-color: var(--accent-f); color: var(--accent-f); background: rgba(244,143,177,0.08); }
+  .avatar { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+  .avatar-m { background: var(--accent-m); color: #000; }
+  .avatar-f { background: var(--accent-f); color: #000; }
+  .tabs { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .tab { flex: 1; padding: 12px 6px; text-align: center; font-size: 11px; font-weight: 600; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; }
+  .tab.active { color: var(--text); border-bottom-color: var(--accent-m); }
+  .content { padding: 14px; }
+  .section { display: none; }
+  .section.active { display: block; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; }
+  .card-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 12px; }
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .stat-box { background: var(--surface2); border-radius: 10px; padding: 12px; border: 1px solid var(--border); }
+  .stat-label { font-size: 10px; color: var(--muted); margin-bottom: 4px; }
+  .stat-value { font-size: 22px; font-weight: 700; }
+  .stat-unit { font-size: 11px; color: var(--muted); }
+  .cal-info { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .cal-main { font-size: 26px; font-weight: 700; }
+  .bar-track { height: 8px; background: var(--border); border-radius: 99px; overflow: hidden; margin-bottom: 6px; }
+  .bar-fill { height: 100%; border-radius: 99px; transition: width 0.4s; }
+  .bar-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); }
+  .macro-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .macro-name { font-size: 12px; color: var(--muted); width: 60px; }
+  .macro-bar-track { flex: 1; height: 6px; background: var(--border); border-radius: 99px; overflow: hidden; }
+  .macro-bar-fill { height: 100%; border-radius: 99px; }
+  .macro-val { font-size: 12px; font-weight: 600; width: 50px; text-align: right; }
+  .upload-area { border: 2px dashed var(--border); border-radius: var(--radius); padding: 24px 16px; text-align: center; cursor: pointer; position: relative; transition: all 0.2s; }
+  .upload-area:hover { border-color: var(--accent-m); }
+  .upload-area input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .upload-icon { font-size: 28px; margin-bottom: 6px; }
+  .upload-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .upload-sub { font-size: 11px; color: var(--muted); }
+  .btn { width: 100%; padding: 13px; border-radius: 10px; border: none; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 8px; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-m { background: var(--accent-m); color: #000; }
+  .btn-f { background: var(--accent-f); color: #000; }
+  .btn-ghost { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+  .chat-box { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); min-height: 180px; max-height: 380px; overflow-y: auto; padding: 12px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .msg { padding: 10px 12px; border-radius: 10px; font-size: 13px; line-height: 1.5; max-width: 92%; white-space: pre-wrap; }
+  .msg-user { background: rgba(79,195,247,0.12); border: 1px solid rgba(79,195,247,0.2); align-self: flex-end; }
+  .msg-user.f { background: rgba(244,143,177,0.12); border-color: rgba(244,143,177,0.2); }
+  .msg-ai { background: var(--surface); border: 1px solid var(--border); align-self: flex-start; }
+  .msg-ai.loading { color: var(--muted); font-style: italic; }
+  .chat-row { display: flex; gap: 8px; }
+  .chat-input { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; color: var(--text); font-size: 14px; outline: none; }
+  .chat-input:focus { border-color: var(--accent-m); }
+  .send-btn { background: var(--accent-m); color: #000; border: none; border-radius: 10px; padding: 0 16px; font-size: 18px; font-weight: 700; cursor: pointer; }
+  .send-btn.f { background: var(--accent-f); }
+  .quick-wrap { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .qbtn { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 6px 12px; font-size: 12px; color: var(--muted); cursor: pointer; }
+  .qbtn:hover { border-color: var(--accent-m); color: var(--accent-m); }
+  .history-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 8px; display: flex; justify-content: space-between; }
+  .eaten-input { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; color: var(--text); font-size: 16px; outline: none; }
+  .eaten-input:focus { border-color: var(--accent-m); }
+  .tag { display: inline-block; padding: 3px 8px; border-radius: 20px; font-size: 11px; margin: 2px; }
+  .tag-green { background: rgba(102,187,106,0.15); color: var(--green); }
+  .analysis-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-top: 10px; font-size: 13px; line-height: 1.6; }
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--border); border-top-color: var(--accent-m); border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 4px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty { text-align: center; padding: 24px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+
+<!-- API KEY MODAL -->
+<div id="api-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;width:100%;max-width:380px">
+    <div style="font-size:24px;text-align:center;margin-bottom:12px">🔑</div>
+    <div style="font-size:18px;font-weight:700;text-align:center;margin-bottom:8px">Klucz API Anthropic</div>
+    <div style="font-size:13px;color:var(--muted);text-align:center;margin-bottom:20px;line-height:1.5">Wpisz swój klucz API żeby uruchomić FitCoach. Klucz zostanie zapisany tylko na tym urządzeniu.</div>
+    <input type="password" id="api-key-input" placeholder="sk-ant-..." 
+      style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:13px;color:var(--text);font-size:14px;outline:none;margin-bottom:10px"
+      onkeydown="if(event.key==='Enter')saveApiKey()">
+    <button onclick="saveApiKey()" style="width:100%;padding:13px;border-radius:10px;border:none;background:var(--accent-m);color:#000;font-size:14px;font-weight:700;cursor:pointer">
+      ✅ Zapisz i uruchom
+    </button>
+    <div id="api-key-error" style="color:var(--red);font-size:12px;text-align:center;margin-top:8px"></div>
+    <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:14px;line-height:1.5">
+      Klucz API znajdziesz na console.anthropic.com<br>Zaczyna się od <code style="background:var(--surface2);padding:2px 5px;border-radius:4px">sk-ant-</code>
+    </div>
+  </div>
+</div>
+
+<div class="header">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <h1>🏋️ FitCoach</h1>
+      <p id="header-sub">Asystent diety — Mateusz & Madzik</p>
+    </div>
+    <button onclick="showApiModal()" title="Zmień klucz API"
+      style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--muted);font-size:11px;cursor:pointer">
+      🔑 API
+    </button>
+  </div>
+</div>
+
+<div class="profile-switcher">
+  <button class="profile-btn active-m" id="btn-m" onclick="switchProfile('mateusz')">
+    <div class="avatar avatar-m">M</div>Mateusz
+  </button>
+  <button class="profile-btn" id="btn-f" onclick="switchProfile('madzik')">
+    <div class="avatar avatar-f">M</div>Madzik
+  </button>
+</div>
+
+<div class="tabs">
+  <div class="tab active" id="tab-dzis" onclick="switchTab('dzis')">📊 Dziś</div>
+  <div class="tab" id="tab-skan" onclick="switchTab('skan')">📷 Skan</div>
+  <div class="tab" id="tab-chat" onclick="switchTab('chat')">💬 Asystent</div>
+  <div class="tab" id="tab-historia" onclick="switchTab('historia')">📈 Historia</div>
+</div>
+
+<div class="content">
+
+  <!-- DZIŚ -->
+  <div class="section active" id="section-dzis">
+
+    <div class="card">
+      <div class="card-title">Kalorie — dzisiaj</div>
+      <div class="cal-info">
+        <div>
+          <div class="cal-main" id="cal-remaining">— kcal</div>
+          <div style="font-size:11px;color:var(--muted)">pozostało do celu</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:13px;font-weight:600" id="cal-goal-disp">Cel: —</div>
+          <div style="font-size:11px;color:var(--muted)" id="cal-tdee-disp">TDEE: —</div>
+        </div>
+      </div>
+      <div class="bar-track"><div class="bar-fill" id="cal-bar" style="width:0%;background:var(--green)"></div></div>
+      <div class="bar-labels">
+        <span id="cal-eaten-lbl">Zjedzone: 0 kcal</span>
+        <span id="cal-deficit-lbl">Deficyt: —</span>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="stat-label">Waga</div>
+        <div class="stat-value" id="s-waga" style="font-size:24px">—</div>
+        <div class="stat-unit">kg</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Tkanka tłuszczowa</div>
+        <div class="stat-value" id="s-tluszcz" style="color:var(--orange)">—</div>
+        <div class="stat-unit">%</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Masa mięśniowa</div>
+        <div class="stat-value" id="s-miesnie" style="color:var(--green)">—</div>
+        <div class="stat-unit">kg</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">BMR</div>
+        <div class="stat-value" id="s-bmr" style="font-size:18px">—</div>
+        <div class="stat-unit">kcal/dzień</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Makroskładniki — cel dzienny</div>
+      <div id="macro-box"><div class="empty">Wgraj screenshot z wagi żeby zobaczyć makra</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Spalone kalorie — zegarek</div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:26px;font-weight:700" id="s-spalone">—</div>
+          <div style="font-size:11px;color:var(--muted)">kcal spalone dziś</div>
+        </div>
+        <div style="font-size:12px;color:var(--muted)" id="s-cwiczenie">Brak danych zegarka</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">➕ Dodaj zjedzone kalorie</div>
+      <div style="display:flex;gap:6px;margin-bottom:12px">
+        <button id="mode-kcal-btn" onclick="setEatenMode('kcal')"
+          style="flex:1;padding:8px;border-radius:8px;border:2px solid var(--accent-m);background:rgba(79,195,247,0.12);color:var(--accent-m);font-size:12px;font-weight:700;cursor:pointer">
+          🔢 Wpisuję kcal
+        </button>
+        <button id="mode-desc-btn" onclick="setEatenMode('desc')"
+          style="flex:1;padding:8px;border-radius:8px;border:2px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer">
+          🥗 Opisuję składniki
+        </button>
+      </div>
+      <div id="mode-kcal">
+        <div style="display:flex;gap:8px">
+          <input type="number" id="eaten-input" class="eaten-input" placeholder="np. 650 kcal" min="0" max="9999"
+            onkeydown="if(event.key==='Enter')addEaten()">
+          <button class="btn btn-m" style="width:auto;padding:12px 20px;margin-top:0" onclick="addEaten()">Dodaj</button>
+        </div>
+      </div>
+      <div id="mode-desc" style="display:none">
+        <textarea id="desc-input" placeholder="np. garsc szpinaku, 3 ziemniaki, 2 duze lyzki serka wiejskiego, lyzka oliwy..."
+          style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;color:var(--text);font-size:13px;outline:none;resize:none;height:80px;font-family:inherit"></textarea>
+        <button class="btn btn-m" onclick="calcDesc()" id="btn-calc-desc">🔍 Przelicz na kalorie</button>
+        <div id="desc-result" style="margin-top:10px"></div>
+      </div>
+      <div id="eaten-log" style="margin-top:10px"></div>
+      <button class="btn btn-ghost" style="margin-top:8px;font-size:12px" onclick="resetEaten()">🔄 Resetuj dzienny licznik</button>
+    </div>
+
+  </div>
+
+  <!-- SKAN -->
+  <div class="section" id="section-skan">
+
+    <div class="card" style="border-color:rgba(79,195,247,0.3);background:rgba(79,195,247,0.05)">
+      <div style="font-size:13px;line-height:1.6;color:var(--text)">
+        💡 <strong>Jak dodać pomiar:</strong><br>
+        Wrzuć screenshot z wagi lub zegarka do <strong>czatu Claude</strong> (przycisk + obok pola tekstowego). Claude odczyta dane i poda Ci liczby do wpisania poniżej.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">⚖️ Waga — wpisz dane ręcznie</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+        <div>
+          <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Data (DD.MM.RRRR)</div>
+          <input type="text" id="f-data" placeholder="23.06.2026" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:14px;outline:none">
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Waga (kg)</div>
+          <input type="number" id="f-waga" placeholder="73.9" step="0.1" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:14px;outline:none">
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Tkanka tłuszczowa (%)</div>
+          <input type="number" id="f-tluszcz" placeholder="17.7" step="0.1" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:14px;outline:none">
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Masa mięśniowa (kg)</div>
+          <input type="number" id="f-miesnie" placeholder="57.7" step="0.1" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:14px;outline:none">
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--muted);margin-bottom:4px">BMR (kcal)</div>
+          <input type="number" id="f-bmr" placeholder="1700" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:14px;outline:none">
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Tłuszcz (kg)</div>
+          <input type="number" id="f-tluszcz-kg" placeholder="13.1" step="0.1" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:14px;outline:none">
+        </div>
+      </div>
+      <button class="btn btn-m" onclick="saveManual()">💾 Zapisz pomiar wagi</button>
+      <div id="manual-result" style="margin-top:8px;font-size:13px"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">⌚ Zegarek — spalone kalorie</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+        <div>
+          <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Spalone kcal</div>
+          <input type="number" id="f-spalone" placeholder="1246" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:14px;outline:none">
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Ćwiczenia (min)</div>
+          <input type="number" id="f-cwiczenie" placeholder="125" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:14px;outline:none">
+        </div>
+      </div>
+      <button class="btn btn-m" onclick="saveWatch()">💾 Zapisz dane zegarka</button>
+      <div id="watch-result" style="margin-top:8px;font-size:13px"></div>
+    </div>
+  </div>
+
+  <!-- CHAT -->
+  <div class="section" id="section-chat">
+    <div class="card" style="padding:12px">
+      <div class="card-title">Szybkie pytania</div>
+      <!-- TRYB KONTEKSTU -->
+      <div style="display:flex;gap:6px;margin-bottom:10px">
+        <button id="ctx-dom-btn" onclick="setCtx('dom')"
+          style="flex:1;padding:7px;border-radius:8px;border:2px solid var(--accent-m);background:rgba(79,195,247,0.10);color:var(--accent-m);font-size:12px;font-weight:700;cursor:pointer">
+          🏠 W domu
+        </button>
+        <button id="ctx-praca-btn" onclick="setCtx('praca')"
+          style="flex:1;padding:7px;border-radius:8px;border:2px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer">
+          💼 W pracy (mikrofala)
+        </button>
+      </div>
+      <div class="quick-wrap" id="quick-wrap">
+        <div class="qbtn" onclick="sq(ctxPrompt('sniadanie'))">🌅 Śniadanie</div>
+        <div class="qbtn" onclick="sq(ctxPrompt('lunch'))">☀️ Lunch</div>
+        <div class="qbtn" onclick="sq(ctxPrompt('kolacja'))">🌙 Kolacja</div>
+        <div class="qbtn" onclick="sq('Ile białka powinienem jeszcze zjeść dziś?')">💪 Białko</div>
+        <div class="qbtn" onclick="sq('Zrób mi plan posiłków na jutro z deficytem. Lunch i snack do zabrania do pracy (mikrofala).')">📋 Plan jutro</div>
+        <div class="qbtn" onclick="sq('Jak idzie mi postęp w redukcji tłuszczu?')">📊 Postęp</div>
+      </div>
+    </div>
+    <div class="chat-box" id="chat-box"></div>
+    <div class="chat-row">
+      <input class="chat-input" id="chat-input" placeholder="Napisz pytanie..." onkeydown="if(event.key==='Enter')sendChat()">
+      <button class="send-btn" id="send-btn" onclick="sendChat()">↑</button>
+    </div>
+  </div>
+
+  <!-- HISTORIA -->
+  <div class="section" id="section-historia">
+    <div class="card">
+      <div class="card-title">📈 Historia — <span id="hist-name">Mateusz</span></div>
+      <div id="hist-content"><div class="empty">Wgraj screenshoty żeby budować historię</div></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ===================== DANE STARTOWE =====================
+const PROFILES = {
+  mateusz: {
+    name:'Mateusz', gender:'M', age:36, height:184, activity:1.55,
+    prefs:'Ulubione dania: ragù z wołowiną, carbonara, carbonara ze szparagami, pasta z mascarpone i pieczarkami, bolognese z indykiem, pasta ze szpinakiem i łososiem w mascarpone, sos pomidorowy z mascarpone. Ryż jaśminowy z curry z indykiem lub vege curry (batat, cukinia, ziemniak, papryka, ciecierzyca). Pełnoziarnisty makaron chiński z warzywami i indykiem w sosie z czarnej fasoli lub teriyaki. Ramen tonkotsu. Focaccia domowa. Białko: tuńczyk, kurczak, indyk, łosoś, makrela, owoce morza. Śniadanie: jajka + wędlina + warzywa + Skyr 26g białka. Brak alergii, je wszystko, gotuje codziennie chętnie.',
+    data: {data:'21.06.2026', waga:73.9, tluszcz_proc:17.7, tluszcz_kg:13.08, miesnie_kg:57.7, bmr:1700, woda_proc:56.2, mineraly_kg:3.1, bialko_proc:21.9, trzewna_poziom:7.0, spalone_kcal:null, cwiczenie_min:null},
+    history: [{data:'21.06.2026', waga:73.9, tluszcz_proc:17.7, tluszcz_kg:13.08, miesnie_kg:57.7, bmr:1700, woda_proc:56.2, mineraly_kg:3.1, bialko_proc:21.9, trzewna_poziom:7.0, spalone_kcal:null, cwiczenie_min:null}],
+    chat: [], eatenKcal: 0, eatenLog: []
+  },
+  madzik: {
+    name:'Madzik', gender:'K', age:35, height:167, activity:1.55,
+    prefs:'',
+    data: {data:'23.06.2026', waga:68.5, tluszcz_proc:33.1, tluszcz_kg:22.7, miesnie_kg:42.6, bmr:1375, woda_proc:48.0, mineraly_kg:3.2, bialko_proc:14.2, trzewna_poziom:6.0, spalone_kcal:null, cwiczenie_min:null},
+    history: [
+      {data:'21.06.2026', waga:69.5, tluszcz_proc:34.0, tluszcz_kg:23.6, miesnie_kg:42.5, bmr:1378, woda_proc:47.5, mineraly_kg:3.4, bialko_proc:13.7, trzewna_poziom:6.0, spalone_kcal:null, cwiczenie_min:null},
+      {data:'23.06.2026', waga:68.5, tluszcz_proc:33.1, tluszcz_kg:22.7, miesnie_kg:42.6, bmr:1375, woda_proc:48.0, mineraly_kg:3.2, bialko_proc:14.2, trzewna_poziom:6.0, spalone_kcal:null, cwiczenie_min:null}
+    ],
+    chat: [], eatenKcal: 0, eatenLog: []
+  }
+};
+
+let cur = 'mateusz';
+let imgs = { waga: null, zegarek: null };
+let busy = false;
+
+// ===================== PROFILE / TAB =====================
+function switchProfile(name) {
+  cur = name;
+  const f = name === 'madzik';
+  document.getElementById('btn-m').className = 'profile-btn' + (name==='mateusz'?' active-m':'');
+  document.getElementById('btn-f').className = 'profile-btn' + (f?' active-f':'');
+  document.getElementById('send-btn').className = 'send-btn' + (f?' f':'');
+  document.getElementById('chat-input').className = 'chat-input';
+  document.getElementById('hist-name').textContent = PROFILES[name].name;
+  imgs = { waga: null, zegarek: null };
+  ['waga-preview','zegarek-preview'].forEach(id => { const el=document.getElementById(id); if(el) el.innerHTML=''; });
+  ['btn-waga','btn-zegarek'].forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
+  updateDash();
+  renderChat();
+  renderHistory();
+  renderEatenLog();
+}
+
+function switchTab(t) {
+  document.querySelectorAll('.tab').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(el=>el.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('active');
+  document.getElementById('section-'+t).classList.add('active');
+}
+
+// ===================== DASHBOARD =====================
+function tdee(p) {
+  const d = p.data;
+  if (!d.bmr) return null;
+  return d.spalone_kcal ? Math.round(d.bmr + d.spalone_kcal) : Math.round(d.bmr * p.activity);
+}
+function goal(p) {
+  const t = tdee(p); if (!t) return null;
+  return t - (p.gender==='M' ? 400 : 300);
+}
+
+function updateDash() {
+  const p = PROFILES[cur], d = p.data;
+  const T = tdee(p), G = goal(p), E = p.eatenKcal;
+  const R = G ? G - E : null;
+
+  set('s-waga', d.waga ? d.waga.toFixed(1) : '—');
+  set('s-tluszcz', d.tluszcz_proc ? d.tluszcz_proc.toFixed(1) : '—');
+  set('s-miesnie', d.miesnie_kg ? d.miesnie_kg.toFixed(1) : '—');
+  set('s-bmr', d.bmr || '—');
+  set('s-spalone', d.spalone_kcal ? d.spalone_kcal.toLocaleString() : '—');
+  set('s-cwiczenie', d.cwiczenie_min ? `⏱ ${d.cwiczenie_min} min` : 'Brak danych zegarka');
+  set('cal-goal-disp', G ? `Cel: ${G} kcal` : 'Cel: —');
+  set('cal-tdee-disp', T ? `TDEE: ${T} kcal` : 'TDEE: —');
+  set('cal-eaten-lbl', `Zjedzone: ${E} kcal`);
+  set('cal-deficit-lbl', G && T ? `Deficyt: ${T-G} kcal` : 'Deficyt: —');
+
+  if (R !== null) {
+    set('cal-remaining', R > 0 ? `${R} kcal` : '✅ Cel osiągnięty!');
+    const pct = Math.min(100, Math.round(E/G*100));
+    const bar = document.getElementById('cal-bar');
+    bar.style.width = pct + '%';
+    bar.style.background = pct>95?'var(--red)':pct>75?'var(--orange)':'var(--green)';
+  } else {
+    set('cal-remaining', '— kcal');
+    document.getElementById('cal-bar').style.width = '0%';
+  }
+
+  renderMacros(p, G);
+}
+
+function renderMacros(p, G) {
+  const box = document.getElementById('macro-box');
+  if (!p.data.waga || !G) { box.innerHTML='<div class="empty">Wgraj screenshot z wagi żeby zobaczyć makra</div>'; return; }
+  const prot = Math.round(p.data.waga * 2);
+  const protKcal = prot * 4;
+  const fatKcal = Math.round(G * 0.28);
+  const fat = Math.round(fatKcal/9);
+  const carbKcal = Math.max(0, G - protKcal - fatKcal);
+  const carbs = Math.round(carbKcal/4);
+  box.innerHTML = `
+    <div class="macro-row"><div class="macro-name">Białko</div><div class="macro-bar-track"><div class="macro-bar-fill" style="width:${Math.min(100,protKcal/G*100)}%;background:#4fc3f7"></div></div><div class="macro-val" style="color:#4fc3f7">${prot}g</div></div>
+    <div class="macro-row"><div class="macro-name">Węgle</div><div class="macro-bar-track"><div class="macro-bar-fill" style="width:${Math.min(100,carbKcal/G*100)}%;background:#ffa726"></div></div><div class="macro-val" style="color:#ffa726">${carbs}g</div></div>
+    <div class="macro-row"><div class="macro-name">Tłuszcz</div><div class="macro-bar-track"><div class="macro-bar-fill" style="width:${Math.min(100,fatKcal/G*100)}%;background:#ef5350"></div></div><div class="macro-val" style="color:#ef5350">${fat}g</div></div>
+    <div style="font-size:10px;color:var(--muted);margin-top:6px">Łącznie: ${G} kcal | deficyt ${p.gender==='M'?400:300} kcal</div>`;
+}
+
+function set(id, v) { const el=document.getElementById(id); if(el) el.textContent=v; }
+
+// ===================== EATEN =====================
+function addEaten() {
+  const input = document.getElementById('eaten-input');
+  const val = parseInt(input.value);
+  if (!val || val <= 0 || val > 9999) return;
+  const p = PROFILES[cur];
+  p.eatenKcal += val;
+  p.eatenLog.push({ kcal: val, time: new Date().toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'}) });
+  input.value = '';
+  updateDash();
+  renderEatenLog();
+}
+
+function resetEaten() {
+  const p = PROFILES[cur];
+  p.eatenKcal = 0;
+  p.eatenLog = [];
+  updateDash();
+  renderEatenLog();
+}
+
+function renderEatenLog() {
+  const p = PROFILES[cur];
+  const el = document.getElementById('eaten-log');
+  if (!el || !p.eatenLog) return;
+  if (!p.eatenLog.length) { el.innerHTML = ''; return; }
+  el.innerHTML = '<div style="font-size:11px;color:var(--muted);margin-bottom:4px">Dodane dziś:</div>' +
+    p.eatenLog.map(e=>`<div style="font-size:12px;padding:5px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between"><span style="color:var(--muted)">${e.time}${e.label ? ' · '+e.label : ''}</span><span style="font-weight:600;color:var(--green)">${e.kcal} kcal</span></div>`).join('');
+}
+
+// ===================== UPLOAD + ANALYZE =====================
+function handleUpload(ev, type) {
+  const file = ev.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    imgs[type] = e.target.result.split(',')[1];
+    document.getElementById(type+'-preview').innerHTML =
+      `<div style="margin-top:10px;padding:8px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
+        <img src="${e.target.result}" style="width:100%;border-radius:6px;max-height:160px;object-fit:contain">
+        <div style="font-size:12px;color:var(--green);margin-top:6px">✅ Wgrano — kliknij Analizuj</div>
+      </div>`;
+    document.getElementById('btn-'+type).style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function analyzeImage(type) {
+  if (!imgs[type]) return;
+  const p = PROFILES[cur];
+  const btn = document.getElementById('btn-'+type);
+  const prev = document.getElementById(type+'-preview');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Analizuję...';
+
+  const prompt = type === 'waga'
+    ? 'Odczytaj dane z tego screenshota z wagi Huawei Body Fat Scale. Zwróć TYLKO JSON bez żadnego tekstu: {"waga":number,"bmi":number,"tluszcz_proc":number,"tluszcz_kg":number,"miesnie_kg":number,"bmr":number,"woda_proc":number,"mineraly_kg":number,"bialko_proc":number,"trzewna_poziom":number,"data":"DD.MM.YYYY"}'
+    : 'Odczytaj dane aktywności z tego screenshota Huawei Health. Zwróć TYLKO JSON bez żadnego tekstu: {"spalone_kcal":number,"cwiczenie_min":number,"na_nogach_godz":number,"data":"DD.MM.YYYY"}';
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-6', max_tokens:500,
+        messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:'image/jpeg',data:imgs[type]}},
+          {type:'text',text:prompt}
+        ]}]
+      })
+    });
+    const data = await res.json();
+    const text = data.content[0].text.replace(/```json|```/g,'').trim();
+    const parsed = JSON.parse(text);
+
+    if (type === 'waga') {
+      Object.assign(p.data, {
+        data: parsed.data, waga: parsed.waga, tluszcz_proc: parsed.tluszcz_proc,
+        tluszcz_kg: parsed.tluszcz_kg, miesnie_kg: parsed.miesnie_kg, bmr: parsed.bmr,
+        woda_proc: parsed.woda_proc, mineraly_kg: parsed.mineraly_kg,
+        bialko_proc: parsed.bialko_proc, trzewna_poziom: parsed.trzewna_poziom
+      });
+      p.history = p.history.filter(h=>h.data!==parsed.data);
+      p.history.push({...p.data});
+      p.history.sort((a,b)=>a.data.localeCompare(b.data));
+      prev.innerHTML += `<div class="analysis-box">⚖️ <b>Odczytano (${parsed.data}):</b>\nWaga: ${parsed.waga} kg\nTłuszcz: ${parsed.tluszcz_proc}% (${parsed.tluszcz_kg} kg)\nMięśnie: ${parsed.miesnie_kg} kg\nBMR: ${parsed.bmr} kcal\n✅ Dane zaktualizowane!</div>`;
+    } else {
+      p.data.spalone_kcal = parsed.spalone_kcal;
+      p.data.cwiczenie_min = parsed.cwiczenie_min;
+      if (p.history.length) {
+        p.history[p.history.length-1].spalone_kcal = parsed.spalone_kcal;
+        p.history[p.history.length-1].cwiczenie_min = parsed.cwiczenie_min;
+      }
+      prev.innerHTML += `<div class="analysis-box">⌚ <b>Odczytano (${parsed.data}):</b>\nSpalone: ${parsed.spalone_kcal} kcal\nĆwiczenia: ${parsed.cwiczenie_min} min\nNa nogach: ${parsed.na_nogach_godz} godz.\n✅ Dane zaktualizowane!</div>`;
+    }
+    updateDash();
+    renderHistory();
+    btn.innerHTML = '✅ Gotowe!';
+    setTimeout(()=>{ btn.disabled=false; btn.innerHTML='Analizuj ponownie ⚡'; }, 3000);
+  } catch(e) {
+    prev.innerHTML += `<div style="color:var(--red);font-size:12px;margin-top:8px">❌ Błąd: ${e.message}</div>`;
+    btn.disabled = false; btn.innerHTML = 'Spróbuj ponownie';
+  }
+}
+
+// ===================== CHAT =====================
+function systemPrompt() {
+  const p = PROFILES[cur], d = p.data;
+  const T = tdee(p), G = goal(p);
+  const hist = p.history.length > 1
+    ? '\nHISTORIA:\n' + p.history.map(h=>`  ${h.data}: ${h.waga}kg, tłuszcz ${h.tluszcz_proc}%, mięśnie ${h.miesnie_kg}kg`).join('\n')
+    : '';
+  return `Jesteś asystentem dietetycznym dla ${p.name} (${p.gender==='M'?'mężczyzna':'kobieta'}, ${p.age}l, ${p.height}cm, umiarkowanie aktywny/a).
+
+DANE (${d.data||'brak pomiaru'}):
+Waga: ${d.waga||'?'}kg | Tłuszcz: ${d.tluszcz_proc||'?'}% (${d.tluszcz_kg||'?'}kg) | Mięśnie: ${d.miesnie_kg||'?'}kg
+BMR: ${d.bmr||'?'} kcal | TDEE: ${T||'?'} kcal | Cel: ${G||'?'} kcal (deficyt ${p.gender==='M'?400:300} kcal)
+Spalone zegarek: ${d.spalone_kcal||'brak'} kcal | Ćwiczenia: ${d.cwiczenie_min||'?'} min
+Zjedzone dziś: ${p.eatenKcal} kcal | Pozostało: ${G?G-p.eatenKcal:'?'} kcal
+Cel białka: min ${d.waga?Math.round(d.waga*2):'?'}g/dzień
+${p.prefs ? '\nPREFERENCJE:\n'+p.prefs : ''}${hist}
+
+Odpowiadaj po polsku. Bądź konkretny — do każdego proponowanego posiłku podaj kcal i gramy makro (B/W/T). Priorytet: wysokie białko, zachowanie mięśni.`;
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg || busy) return;
+  input.value = '';
+  addMsg(msg, 'user');
+  busy = true;
+  const p = PROFILES[cur];
+  p.chat.push({role:'user',content:msg});
+  const loading = addMsg('⏳ Myślę...', 'ai');
+  loading.classList.add('loading');
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-6', max_tokens:1000,
+        system: systemPrompt(),
+        messages: p.chat.slice(-10)
+      })
+    });
+    const data = await res.json();
+    const reply = data.content[0].text;
+    loading.classList.remove('loading');
+    loading.textContent = reply;
+    p.chat.push({role:'assistant',content:reply});
+
+    // Auto-detect eaten kcal
+    if (/zjadł[ae]m?/i.test(msg)) {
+      const m = msg.match(/(\d{3,4})\s*kcal/i);
+      if (m) { p.eatenKcal += parseInt(m[1]); p.eatenLog.push({kcal:parseInt(m[1]),time:new Date().toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'})}); updateDash(); renderEatenLog(); }
+    }
+  } catch(e) {
+    loading.textContent = '❌ Błąd. Spróbuj ponownie.';
+  } finally {
+    busy = false;
+    document.getElementById('chat-box').scrollTop = 99999;
+  }
+}
+
+function sq(msg) { document.getElementById('chat-input').value=msg; sendChat(); }
+
+function addMsg(text, role) {
+  const box = document.getElementById('chat-box');
+  const div = document.createElement('div');
+  div.className = `msg msg-${role}` + (role==='user'&&cur==='madzik'?' f':'');
+  div.textContent = text;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+  return div;
+}
+
+function renderChat() {
+  const p = PROFILES[cur], box = document.getElementById('chat-box');
+  box.innerHTML = '';
+  if (!p.chat.length) {
+    const div = document.createElement('div');
+    div.className = 'msg msg-ai';
+    div.textContent = `👋 Cześć ${p.name}! Wgraj screenshoty z wagi i zegarka (📷 Skan), potem pytaj co chcesz — co zjeść, ile kalorii zostało, jak idzie postęp!`;
+    box.appendChild(div);
+  } else {
+    p.chat.forEach(m => { const d=document.createElement('div'); d.className=`msg msg-${m.role}`; d.textContent=m.content; box.appendChild(d); });
+  }
+  box.scrollTop = box.scrollHeight;
+}
+
+// ===================== HISTORIA =====================
+function renderHistory() {
+  const p = PROFILES[cur], el = document.getElementById('hist-content');
+  if (!p.history.length) { el.innerHTML='<div class="empty">Wgraj screenshoty żeby budować historię</div>'; return; }
+  el.innerHTML = [...p.history].reverse().map((h,i,arr)=>{
+    const prev = arr[i+1];
+    const dw = prev ? (h.waga-prev.waga).toFixed(1) : null;
+    const dt = prev ? (h.tluszcz_proc-prev.tluszcz_proc).toFixed(1) : null;
+    return `<div class="history-item">
+      <div>
+        <div style="font-size:11px;color:var(--muted)">${h.data||'—'}</div>
+        <div style="font-size:16px;font-weight:700">${h.waga} kg ${dw?`<span style="font-size:11px;color:${dw<0?'var(--green)':'var(--red)'}">(${dw>0?'+':''}${dw})</span>`:''}</div>
+        <div style="font-size:11px;color:var(--muted)">Tłuszcz: ${h.tluszcz_proc}%${dt?` (${dt>0?'+':''}${dt}%)`:''}  |  Mięśnie: ${h.miesnie_kg} kg</div>
+      </div>
+      <div style="text-align:right;font-size:11px;color:var(--muted)">
+        BMR: ${h.bmr} kcal<br>${h.spalone_kcal?`Spalone: ${h.spalone_kcal} kcal`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ===================== ZAPIS RĘCZNY =====================
+function saveManual() {
+  const p = PROFILES[cur];
+  const data = document.getElementById('f-data').value || new Date().toLocaleDateString('pl-PL');
+  const waga = parseFloat(document.getElementById('f-waga').value);
+  const tluszcz = parseFloat(document.getElementById('f-tluszcz').value);
+  const miesnie = parseFloat(document.getElementById('f-miesnie').value);
+  const bmr = parseInt(document.getElementById('f-bmr').value);
+  const tluszcz_kg = parseFloat(document.getElementById('f-tluszcz-kg').value);
+
+  if (!waga || !tluszcz || !miesnie || !bmr) {
+    document.getElementById('manual-result').innerHTML = '<span style="color:var(--red)">❌ Wypełnij przynajmniej: wagę, % tłuszczu, mięśnie i BMR</span>';
+    return;
+  }
+
+  const entry = {
+    data, waga, tluszcz_proc: tluszcz, tluszcz_kg: tluszcz_kg || +(waga*tluszcz/100).toFixed(2),
+    miesnie_kg: miesnie, bmr,
+    spalone_kcal: p.data.spalone_kcal || null,
+    cwiczenie_min: p.data.cwiczenie_min || null
+  };
+
+  Object.assign(p.data, entry);
+  p.history = p.history.filter(h => h.data !== data);
+  p.history.push({...entry});
+  p.history.sort((a,b) => a.data.localeCompare(b.data));
+
+  updateDash();
+  renderHistory();
+
+  document.getElementById('manual-result').innerHTML = `<span style="color:var(--green)">✅ Zapisano pomiar z ${data}!</span>`;
+  // Clear fields
+  ['f-data','f-waga','f-tluszcz','f-miesnie','f-bmr','f-tluszcz-kg'].forEach(id => document.getElementById(id).value = '');
+}
+
+function saveWatch() {
+  const p = PROFILES[cur];
+  const spalone = parseInt(document.getElementById('f-spalone').value);
+  const cwiczenie = parseInt(document.getElementById('f-cwiczenie').value);
+
+  if (!spalone) {
+    document.getElementById('watch-result').innerHTML = '<span style="color:var(--red)">❌ Podaj spalone kcal</span>';
+    return;
+  }
+
+  p.data.spalone_kcal = spalone;
+  p.data.cwiczenie_min = cwiczenie || null;
+  if (p.history.length) {
+    p.history[p.history.length-1].spalone_kcal = spalone;
+    p.history[p.history.length-1].cwiczenie_min = cwiczenie || null;
+  }
+
+  updateDash();
+  document.getElementById('watch-result').innerHTML = `<span style="color:var(--green)">✅ Zapisano: ${spalone} kcal spalonych!</span>`;
+  ['f-spalone','f-cwiczenie'].forEach(id => document.getElementById(id).value = '');
+}
+
+// ===================== TRYB KONTEKSTU =====================
+let currentCtx = 'dom';
+
+function setCtx(ctx) {
+  currentCtx = ctx;
+  const isDom = ctx === 'dom';
+  document.getElementById('ctx-dom-btn').style.borderColor = isDom ? 'var(--accent-m)' : 'var(--border)';
+  document.getElementById('ctx-dom-btn').style.background = isDom ? 'rgba(79,195,247,0.10)' : 'transparent';
+  document.getElementById('ctx-dom-btn').style.color = isDom ? 'var(--accent-m)' : 'var(--muted)';
+  document.getElementById('ctx-praca-btn').style.borderColor = !isDom ? 'var(--orange)' : 'var(--border)';
+  document.getElementById('ctx-praca-btn').style.background = !isDom ? 'rgba(255,167,38,0.10)' : 'transparent';
+  document.getElementById('ctx-praca-btn').style.color = !isDom ? 'var(--orange)' : 'var(--muted)';
+}
+
+function ctxPrompt(meal) {
+  const praca = currentCtx === 'praca';
+  if (meal === 'sniadanie') return 'Jestem głodny, co zjeść na śniadanie?' + (praca ? ' (jestem w pracy, mam tylko mikrofalę)' : '');
+  if (meal === 'lunch') return praca
+    ? 'Co zjeść na lunch w pracy? Mam tylko mikrofalówkę — propozycje które mogę podgrzać lub zjeść na zimno. Ile zostało mi kalorii?'
+    : 'Co zjeść na lunch? Ile zostało mi kalorii?';
+  if (meal === 'kolacja') return 'Co na kolację żeby domknąć deficyt?' + (praca ? ' (wróciłem z pracy, gotuję w domu)' : '');
+  return '';
+}
+
+// ===================== PRZELICZNIK SKŁADNIKÓW =====================
+function setEatenMode(mode) {
+  const isKcal = mode === 'kcal';
+  document.getElementById('mode-kcal').style.display = isKcal ? 'block' : 'none';
+  document.getElementById('mode-desc').style.display = !isKcal ? 'block' : 'none';
+  document.getElementById('mode-kcal-btn').style.borderColor = isKcal ? 'var(--accent-m)' : 'var(--border)';
+  document.getElementById('mode-kcal-btn').style.background = isKcal ? 'rgba(79,195,247,0.12)' : 'transparent';
+  document.getElementById('mode-kcal-btn').style.color = isKcal ? 'var(--accent-m)' : 'var(--muted)';
+  document.getElementById('mode-desc-btn').style.borderColor = !isKcal ? 'var(--accent-m)' : 'var(--border)';
+  document.getElementById('mode-desc-btn').style.background = !isKcal ? 'rgba(79,195,247,0.12)' : 'transparent';
+  document.getElementById('mode-desc-btn').style.color = !isKcal ? 'var(--accent-m)' : 'var(--muted)';
+}
+
+async function calcDesc() {
+  const textarea = document.getElementById('desc-input');
+  const desc = textarea.value.trim();
+  if (!desc) return;
+  const btn = document.getElementById('btn-calc-desc');
+  const result = document.getElementById('desc-result');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Liczę...';
+  result.innerHTML = '';
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST', headers: {'Content-Type': 'application/json', 'x-api-key': getApiKey(), 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true'},
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6', max_tokens: 600,
+        messages: [{role: 'user', content: `Jesteś ekspertem ds. żywienia. Użytkownik opisał co zjadł: "${desc}". 
+Oblicz kalorie i makroskładniki. Zwróć TYLKO JSON:
+{"pozycje":[{"nazwa":"string","ilosc":"string","kcal":number,"bialko":number,"weglow":number,"tluszcz":number}],"suma":{"kcal":number,"bialko":number,"weglow":number,"tluszcz":number}}
+Szacuj rozsądnie typowe porcje dla podanych ilości.`}]
+      })
+    });
+    const data = await res.json();
+    const parsed = JSON.parse(data.content[0].text.replace(/```json|```/g,'').trim());
+    const s = parsed.suma;
+
+    result.innerHTML = `
+      <div class="analysis-box">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Szacowane składniki:</div>
+        ${parsed.pozycje.map(p=>`
+          <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px">
+            <span>${p.nazwa} <span style="color:var(--muted)">(${p.ilosc})</span></span>
+            <span style="font-weight:600">${p.kcal} kcal</span>
+          </div>`).join('')}
+        <div style="margin-top:10px;padding:10px;background:var(--surface);border-radius:8px">
+          <div style="font-size:16px;font-weight:700;margin-bottom:6px">Łącznie: ${s.kcal} kcal</div>
+          <div style="display:flex;gap:12px;font-size:12px">
+            <span style="color:#4fc3f7">B: ${s.bialko}g</span>
+            <span style="color:#ffa726">W: ${s.weglow}g</span>
+            <span style="color:#ef5350">T: ${s.tluszcz}g</span>
+          </div>
+        </div>
+        <button class="btn btn-m" style="margin-top:8px;font-size:13px" onclick="confirmDesc(${s.kcal}, '${desc.substring(0,40).replace(/'/g,'')}...')">
+          ✅ Dodaj ${s.kcal} kcal do dziennika
+        </button>
+      </div>`;
+  } catch(e) {
+    result.innerHTML = `<div style="color:var(--red);font-size:12px">❌ Błąd: ${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '🔍 Przelicz na kalorie';
+  }
+}
+
+function confirmDesc(kcal, label) {
+  const p = PROFILES[cur];
+  p.eatenKcal += kcal;
+  p.eatenLog.push({ kcal, time: new Date().toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'}), label });
+  document.getElementById('desc-input').value = '';
+  document.getElementById('desc-result').innerHTML = `<div style="color:var(--green);font-size:13px;padding:8px">✅ Dodano ${kcal} kcal!</div>`;
+  updateDash();
+  renderEatenLog();
+  setTimeout(() => { const el=document.getElementById('desc-result'); if(el) el.innerHTML = ''; }, 2000);
+}
+
+// ===================== API KEY =====================
+function getApiKey() {
+  return localStorage.getItem('fitcoach_apikey') || '';
+}
+
+function saveApiKey() {
+  const key = document.getElementById('api-key-input').value.trim();
+  if (!key.startsWith('sk-ant-')) {
+    document.getElementById('api-key-error').textContent = 'Klucz musi zaczynać się od sk-ant-';
+    return;
+  }
+  localStorage.setItem('fitcoach_apikey', key);
+  document.getElementById('api-modal').style.display = 'none';
+  document.getElementById('header-sub').textContent = '✅ Klucz zapisany!';
+  setTimeout(() => {
+    document.getElementById('header-sub').textContent = 'Asystent diety — Mateusz & Madzik';
+  }, 2000);
+}
+
+function showApiModal() {
+  const modal = document.getElementById('api-modal');
+  modal.style.display = 'flex';
+  const existing = getApiKey();
+  if (existing) document.getElementById('api-key-input').value = existing;
+}
+
+function checkApiKey() {
+  if (!getApiKey()) {
+    document.getElementById('api-modal').style.display = 'flex';
+  }
+}
+
+// ===================== LOCALSTORAGE =====================
+const LS_KEY = 'fitcoach_v1';
+
+function saveToStorage() {
+  try {
+    const toSave = {
+      mateusz: {
+        data: PROFILES.mateusz.data,
+        history: PROFILES.mateusz.history,
+        eatenKcal: PROFILES.mateusz.eatenKcal,
+        eatenLog: PROFILES.mateusz.eatenLog,
+        chat: PROFILES.mateusz.chat.slice(-20)
+      },
+      madzik: {
+        data: PROFILES.madzik.data,
+        history: PROFILES.madzik.history,
+        eatenKcal: PROFILES.madzik.eatenKcal,
+        eatenLog: PROFILES.madzik.eatenLog,
+        chat: PROFILES.madzik.chat.slice(-20)
+      },
+      savedAt: new Date().toISOString()
+    };
+    localStorage.setItem(LS_KEY, JSON.stringify(toSave));
+    showSaveIndicator();
+  } catch(e) {
+    console.warn('localStorage save failed:', e);
+  }
+}
+
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return false;
+    const saved = JSON.parse(raw);
+    if (saved.mateusz) {
+      Object.assign(PROFILES.mateusz, saved.mateusz);
+    }
+    if (saved.madzik) {
+      Object.assign(PROFILES.madzik, saved.madzik);
+    }
+    return true;
+  } catch(e) {
+    console.warn('localStorage load failed:', e);
+    return false;
+  }
+}
+
+function clearStorage() {
+  if (confirm('Usunąć wszystkie zapisane dane? Tego nie można cofnąć.')) {
+    localStorage.removeItem(LS_KEY);
+    location.reload();
+  }
+}
+
+function showSaveIndicator() {
+  const badge = document.getElementById('header-sub');
+  if (!badge) return;
+  const prev = badge.textContent;
+  badge.textContent = '✅ Zapisano';
+  badge.style.color = 'var(--green)';
+  setTimeout(() => {
+    badge.textContent = prev;
+    badge.style.color = '';
+  }, 1500);
+}
+
+// Auto-save po każdej zmianie danych
+const _origAddEaten = addEaten;
+addEaten = function() { _origAddEaten(); saveToStorage(); };
+
+const _origResetEaten = resetEaten;
+resetEaten = function() { _origResetEaten(); saveToStorage(); };
+
+const _origSaveManual = saveManual;
+saveManual = function() { _origSaveManual(); saveToStorage(); };
+
+const _origSaveWatch = saveWatch;
+saveWatch = function() { _origSaveWatch(); saveToStorage(); };
+
+const _origConfirmDesc = confirmDesc;
+confirmDesc = function(kcal, label) { _origConfirmDesc(kcal, label); saveToStorage(); };
+
+// ===================== INIT =====================
+checkApiKey();
+const loaded = loadFromStorage();
+updateDash();
+renderChat();
+renderHistory();
+
+// Pokaż info czy załadowano z pamięci
+const badge = document.getElementById('header-sub');
+if (badge) {
+  if (loaded) {
+    badge.textContent = '💾 Dane załadowane z pamięci telefonu';
+    badge.style.color = 'var(--green)';
+    setTimeout(() => {
+      badge.textContent = 'Asystent diety — Mateusz & Madzik';
+      badge.style.color = '';
+    }, 2500);
+  }
+}
+</script>
+</body>
+</html>
