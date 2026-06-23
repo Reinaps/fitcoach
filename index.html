@@ -413,6 +413,19 @@ function updateDash() {
   renderMacros(p, G);
 }
 
+function microRow(name, eaten, goalVal, unit) {
+  const pct = Math.min(100, goalVal > 0 ? Math.round(eaten/goalVal*100) : 0);
+  const over = eaten > goalVal;
+  const color = over ? 'var(--red)' : pct > 70 ? 'var(--green)' : 'var(--orange)';
+  return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+    <div style="font-size:11px;width:80px;color:var(--muted)">${name}</div>
+    <div style="flex:1;height:5px;background:var(--border);border-radius:99px;overflow:hidden">
+      <div style="width:${pct}%;height:100%;background:${color};border-radius:99px"></div>
+    </div>
+    <div style="font-size:11px;font-weight:600;width:70px;text-align:right;color:${color}">${eaten}${unit} <span style="color:var(--muted);font-weight:400">/ ${goalVal}${unit}</span></div>
+  </div>`;
+}
+
 function renderMacros(p, G) {
   const box = document.getElementById('macro-box');
   if (!p.data.waga || !G) { box.innerHTML='<div class="empty">Wpisz dane z wagi w zakładce Skan żeby zobaczyć makra</div>'; return; }
@@ -445,7 +458,14 @@ function renderMacros(p, G) {
     `<div style="font-size:10px;color:var(--muted);margin-top:6px;display:flex;justify-content:space-between">
       <span>Cel: ${G} kcal | deficyt ${p.gender==='M'?400:300} kcal</span>
       <span style="color:var(--accent-m)">${em.b+em.w+em.t > 0 ? 'Zjedzone: '+p.eatenKcal+' kcal' : 'Dodaj posiłek poniżej'}</span>
-    </div>`;
+    </div>` +
+    (em.blonnik||em.zelaz||em.wapn ? `
+    <div style="margin-top:10px;padding:10px;background:var(--surface2);border-radius:8px">
+      <div style="font-size:10px;color:var(--muted);margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">Mikroskładniki dziś</div>
+      ${microRow('🌾 Błonnik', em.blonnik||0, p.gender==='M'?30:25, 'g')}
+      ${microRow('🔴 Żelazo', em.zelaz||0, p.gender==='M'?10:18, 'mg')}
+      ${microRow('🦷 Wapń', em.wapn||0, 1000, 'mg')}
+    </div>` : '');
 }
 
 function set(id, v) { const el=document.getElementById(id); if(el) el.textContent=v; }
@@ -769,9 +789,9 @@ async function calcDesc() {
       body: JSON.stringify({
         model: 'claude-sonnet-4-6', max_tokens: 600,
         messages: [{role: 'user', content: `Jesteś ekspertem ds. żywienia. Użytkownik opisał co zjadł: "${desc}". 
-Oblicz kalorie i makroskładniki. Zwróć TYLKO JSON:
-{"pozycje":[{"nazwa":"string","ilosc":"string","kcal":number,"bialko":number,"weglow":number,"tluszcz":number}],"suma":{"kcal":number,"bialko":number,"weglow":number,"tluszcz":number}}
-Szacuj rozsądnie typowe porcje dla podanych ilości.`}]
+Oblicz kalorie, makro i mikroskładniki. Zwróć TYLKO JSON bez tekstu:
+{"pozycje":[{"nazwa":"string","ilosc":"string","kcal":number,"bialko":number,"weglow":number,"tluszcz":number,"blonnik":number,"zelaz":number,"wapn":number}],"suma":{"kcal":number,"bialko":number,"weglow":number,"tluszcz":number,"blonnik":number,"zelaz":number,"wapn":number}}
+Szacuj rozsądnie. blonnik w gramach, zelaz w mg, wapn w mg.`}]
       })
     });
     const data = await res.json();
@@ -794,14 +814,20 @@ Szacuj rozsądnie typowe porcje dla podanych ilości.`}]
             <span style="font-weight:600">${p.kcal} kcal</span>
           </div>`).join('')}
         <div style="margin-top:10px;padding:10px;background:var(--surface);border-radius:8px">
-          <div style="font-size:16px;font-weight:700;margin-bottom:6px">Łącznie: ${s.kcal} kcal</div>
-          <div style="display:flex;gap:12px;font-size:12px">
+          <div style="font-size:16px;font-weight:700;margin-bottom:8px">Łącznie: ${s.kcal} kcal</div>
+          <div style="display:flex;gap:10px;font-size:12px;flex-wrap:wrap;margin-bottom:8px">
             <span style="color:#4fc3f7">B: ${s.bialko}g</span>
             <span style="color:#ffa726">W: ${s.weglow}g</span>
             <span style="color:#ef5350">T: ${s.tluszcz}g</span>
           </div>
+          <div style="height:1px;background:var(--border);margin:6px 0"></div>
+          <div style="display:flex;gap:10px;font-size:11px;flex-wrap:wrap;color:var(--muted)">
+            <span>🌾 Błonnik: <b style="color:var(--text)">${s.blonnik||0}g</b></span>
+            <span>🔴 Żelazo: <b style="color:var(--text)">${s.zelaz||0}mg</b></span>
+            <span>🦷 Wapń: <b style="color:var(--text)">${s.wapn||0}mg</b></span>
+          </div>
         </div>
-        <button class="btn btn-m" style="margin-top:8px;font-size:13px" onclick="confirmDesc(${s.kcal}, '${desc.substring(0,40).replace(/'/g,'')}...', {b:${s.bialko},w:${s.weglow},t:${s.tluszcz}})">
+        <button class="btn btn-m" style="margin-top:8px;font-size:13px" onclick="confirmDesc(${s.kcal}, '${desc.substring(0,40).replace(/'/g,'')}...', {b:${s.bialko},w:${s.weglow},t:${s.tluszcz},blonnik:${s.blonnik||0},zelaz:${s.zelaz||0},wapn:${s.wapn||0}})">
           ✅ Dodaj ${s.kcal} kcal do dziennika
         </button>
       </div>`;
@@ -816,15 +842,18 @@ Szacuj rozsądnie typowe porcje dla podanych ilości.`}]
 function confirmDesc(kcal, label, macros) {
   const p = PROFILES[cur];
   p.eatenKcal += kcal;
-  if (!p.eatenMacros) p.eatenMacros = {b:0, w:0, t:0};
+  if (!p.eatenMacros) p.eatenMacros = {b:0, w:0, t:0, blonnik:0, zelaz:0, wapn:0};
   if (macros) {
     p.eatenMacros.b += Math.round(macros.b || 0);
     p.eatenMacros.w += Math.round(macros.w || 0);
     p.eatenMacros.t += Math.round(macros.t || 0);
+    p.eatenMacros.blonnik = +(( p.eatenMacros.blonnik || 0) + (macros.blonnik || 0)).toFixed(1);
+    p.eatenMacros.zelaz = +(( p.eatenMacros.zelaz || 0) + (macros.zelaz || 0)).toFixed(1);
+    p.eatenMacros.wapn = Math.round((p.eatenMacros.wapn || 0) + (macros.wapn || 0));
   }
   p.eatenLog.push({ kcal, time: new Date().toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'}), label });
   document.getElementById('desc-input').value = '';
-  document.getElementById('desc-result').innerHTML = `<div style="color:var(--green);font-size:13px;padding:8px">✅ Dodano ${kcal} kcal! B:${Math.round(macros?.b||0)}g W:${Math.round(macros?.w||0)}g T:${Math.round(macros?.t||0)}g</div>`;
+  document.getElementById('desc-result').innerHTML = `<div style="color:var(--green);font-size:13px;padding:8px">✅ Dodano! B:${Math.round(macros?.b||0)}g W:${Math.round(macros?.w||0)}g T:${Math.round(macros?.t||0)}g | 🌾${macros?.blonnik||0}g 🔴${macros?.zelaz||0}mg 🦷${macros?.wapn||0}mg</div>`;
   updateDash();
   renderEatenLog();
   setTimeout(() => { const el=document.getElementById('desc-result'); if(el) el.innerHTML = ''; }, 2000);
