@@ -83,19 +83,21 @@
 </head>
 <body>
 
-<!-- PIN MODAL -->
+<!-- API KEY MODAL -->
 <div id="api-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:999;align-items:center;justify-content:center;padding:20px">
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;width:100%;max-width:320px;text-align:center">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;width:100%;max-width:340px;text-align:center">
     <div style="font-size:40px;margin-bottom:12px">🏋️</div>
     <div style="font-size:20px;font-weight:700;margin-bottom:6px">FitCoach</div>
-    <div style="font-size:13px;color:var(--muted);margin-bottom:24px">Wpisz PIN żeby wejść</div>
-    <input type="password" id="pin-input" placeholder="••••" maxlength="6"
-      style="width:100%;background:var(--surface2);border:2px solid var(--border);border-radius:10px;padding:14px;color:var(--text);font-size:24px;text-align:center;letter-spacing:8px;outline:none;margin-bottom:12px"
-      onkeydown="if(event.key==='Enter')verifyPin()">
-    <button onclick="verifyPin()" style="width:100%;padding:13px;border-radius:10px;border:none;background:var(--accent-m);color:#000;font-size:15px;font-weight:700;cursor:pointer">
-      Wejdź →
+    <div style="font-size:13px;color:var(--muted);margin-bottom:6px;line-height:1.5">Wpisz klucz API Anthropic.</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:20px">Klucz zostanie zaszyfrowany i zapisany tylko na tym urządzeniu.</div>
+    <input type="password" id="api-key-input" placeholder="sk-ant-..." 
+      style="width:100%;background:var(--surface2);border:2px solid var(--border);border-radius:10px;padding:13px;color:var(--text);font-size:13px;outline:none;margin-bottom:10px"
+      onkeydown="if(event.key==='Enter')submitApiKey()">
+    <button onclick="submitApiKey()" style="width:100%;padding:13px;border-radius:10px;border:none;background:var(--accent-m);color:#000;font-size:15px;font-weight:700;cursor:pointer">
+      ✅ Zapisz i uruchom
     </button>
-    <div id="api-key-error" style="color:var(--red);font-size:13px;margin-top:10px;min-height:20px"></div>
+    <div id="api-key-error" style="color:var(--red);font-size:12px;margin-top:8px;min-height:18px"></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:14px">console.anthropic.com → API Keys</div>
   </div>
 </div>
 
@@ -828,51 +830,76 @@ function confirmDesc(kcal, label, macros) {
   setTimeout(() => { const el=document.getElementById('desc-result'); if(el) el.innerHTML = ''; }, 2000);
 }
 
-// ===================== API KEY + PIN =====================
-const _AK = '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';
+// ===================== API KEY =====================
+// Szyfrowanie XOR z PINem - klucz nigdy nie trafia do GitHub
 const _PIN = '2480';
 
-function getApiKey() { return _AK; }
-
-function checkPin() {
-  try {
-    const ok = sessionStorage.getItem('fitcoach_pin');
-    if (ok === 'true') return true;
-  } catch(e) {}
-  try {
-    const ok = localStorage.getItem('fitcoach_pin');
-    if (ok === 'true') return true;
-  } catch(e) {}
-  return false;
-}
-
-function savePin() {
-  try { sessionStorage.setItem('fitcoach_pin', 'true'); } catch(e) {}
-  try { localStorage.setItem('fitcoach_pin', 'true'); } catch(e) {}
-}
-
-function verifyPin() {
-  const entered = document.getElementById('pin-input').value.trim();
-  if (entered === _PIN) {
-    savePin();
-    document.getElementById('api-modal').style.display = 'none';
-    document.getElementById('header-sub').textContent = '✅ Witaj!';
-    setTimeout(() => {
-      document.getElementById('header-sub').textContent = 'Asystent diety — Mateusz & Madzik';
-    }, 1500);
-  } else {
-    document.getElementById('api-key-error').textContent = '❌ Nieprawidłowy PIN';
-    document.getElementById('pin-input').value = '';
+function xorEncrypt(str, key) {
+  let result = '';
+  for (let i = 0; i < str.length; i++) {
+    result += String.fromCharCode(str.charCodeAt(i) ^ key.charCodeAt(i % key.length));
   }
+  return btoa(result);
 }
 
-function showApiModal() {}
+function xorDecrypt(encoded, key) {
+  try {
+    const str = atob(encoded);
+    let result = '';
+    for (let i = 0; i < str.length; i++) {
+      result += String.fromCharCode(str.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+    }
+    return result;
+  } catch(e) { return ''; }
+}
+
+function saveApiKey(key) {
+  const encrypted = xorEncrypt(key, _PIN);
+  try { localStorage.setItem('fc_ak', encrypted); } catch(e) {}
+  try { sessionStorage.setItem('fc_ak', encrypted); } catch(e) {}
+  // Cookie na 365 dni
+  const d = new Date();
+  d.setTime(d.getTime() + 365*24*60*60*1000);
+  document.cookie = 'fc_ak=' + encodeURIComponent(encrypted) + ';expires=' + d.toUTCString() + ';path=/;SameSite=Lax';
+}
+
+function getApiKey() {
+  let encrypted = null;
+  try { encrypted = localStorage.getItem('fc_ak'); } catch(e) {}
+  if (!encrypted) { try { encrypted = sessionStorage.getItem('fc_ak'); } catch(e) {} }
+  if (!encrypted) {
+    const m = document.cookie.match(/fc_ak=([^;]+)/);
+    if (m) encrypted = decodeURIComponent(m[1]);
+  }
+  if (!encrypted) return '';
+  return xorDecrypt(encrypted, _PIN);
+}
+
+function submitApiKey() {
+  const key = document.getElementById('api-key-input').value.trim();
+  if (!key.startsWith('sk-ant-')) {
+    document.getElementById('api-key-error').textContent = '❌ Klucz musi zaczynać się od sk-ant-';
+    return;
+  }
+  saveApiKey(key);
+  document.getElementById('api-modal').style.display = 'none';
+  document.getElementById('header-sub').textContent = '✅ Gotowe!';
+  setTimeout(() => {
+    document.getElementById('header-sub').textContent = 'Asystent diety — Mateusz & Madzik';
+  }, 1500);
+}
+
+function showApiModal() {
+  document.getElementById('api-modal').style.display = 'flex';
+  const existing = getApiKey();
+  if (existing) document.getElementById('api-key-input').value = existing;
+}
 
 function checkApiKey() {
-  if (!checkPin()) {
+  if (!getApiKey()) {
     document.getElementById('api-modal').style.display = 'flex';
     setTimeout(() => {
-      const el = document.getElementById('pin-input');
+      const el = document.getElementById('api-key-input');
       if (el) el.focus();
     }, 100);
   }
