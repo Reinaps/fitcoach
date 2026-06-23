@@ -908,6 +908,23 @@ function checkApiKey() {
 // ===================== LOCALSTORAGE =====================
 const LS_KEY = 'fitcoach_v1';
 
+function setCookie(name, value, days) {
+  try {
+    const d = new Date();
+    d.setTime(d.getTime() + days*24*60*60*1000);
+    // Skróć wartość jeśli za długa dla cookie
+    const val = typeof value === 'string' && value.length > 3000 ? '' : value;
+    if (val) document.cookie = name + '=' + encodeURIComponent(val) + ';expires=' + d.toUTCString() + ';path=/;SameSite=Lax';
+  } catch(e) {}
+}
+
+function getCookie(name) {
+  try {
+    const m = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+    return m ? decodeURIComponent(m[2]) : null;
+  } catch(e) { return null; }
+}
+
 function saveToStorage() {
   try {
     const toSave = {
@@ -993,7 +1010,7 @@ const _origSaveWatch = saveWatch;
 saveWatch = function() { _origSaveWatch(); saveToStorage(); };
 
 const _origConfirmDesc = confirmDesc;
-confirmDesc = function(kcal, label) { _origConfirmDesc(kcal, label); saveToStorage(); };
+confirmDesc = function(kcal, label, macros) { _origConfirmDesc(kcal, label, macros); saveToStorage(); };
 
 // ===================== INIT =====================
 checkApiKey();
@@ -1001,6 +1018,7 @@ const loaded = loadFromStorage();
 updateDash();
 renderChat();
 renderHistory();
+renderEatenLog();
 
 // Pokaż info czy załadowano z pamięci
 const badge = document.getElementById('header-sub');
