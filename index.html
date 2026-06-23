@@ -83,22 +83,19 @@
 </head>
 <body>
 
-<!-- API KEY MODAL -->
-<div id="api-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px">
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;width:100%;max-width:380px">
-    <div style="font-size:24px;text-align:center;margin-bottom:12px">🔑</div>
-    <div style="font-size:18px;font-weight:700;text-align:center;margin-bottom:8px">Klucz API Anthropic</div>
-    <div style="font-size:13px;color:var(--muted);text-align:center;margin-bottom:20px;line-height:1.5">Wpisz swój klucz API żeby uruchomić FitCoach. Klucz zostanie zapisany tylko na tym urządzeniu.</div>
-    <input type="password" id="api-key-input" placeholder="sk-ant-..." 
-      style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:13px;color:var(--text);font-size:14px;outline:none;margin-bottom:10px"
-      onkeydown="if(event.key==='Enter')saveApiKey()">
-    <button onclick="saveApiKey()" style="width:100%;padding:13px;border-radius:10px;border:none;background:var(--accent-m);color:#000;font-size:14px;font-weight:700;cursor:pointer">
-      ✅ Zapisz i uruchom
+<!-- PIN MODAL -->
+<div id="api-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:999;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;width:100%;max-width:320px;text-align:center">
+    <div style="font-size:40px;margin-bottom:12px">🏋️</div>
+    <div style="font-size:20px;font-weight:700;margin-bottom:6px">FitCoach</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:24px">Wpisz PIN żeby wejść</div>
+    <input type="password" id="pin-input" placeholder="••••" maxlength="6"
+      style="width:100%;background:var(--surface2);border:2px solid var(--border);border-radius:10px;padding:14px;color:var(--text);font-size:24px;text-align:center;letter-spacing:8px;outline:none;margin-bottom:12px"
+      onkeydown="if(event.key==='Enter')verifyPin()">
+    <button onclick="verifyPin()" style="width:100%;padding:13px;border-radius:10px;border:none;background:var(--accent-m);color:#000;font-size:15px;font-weight:700;cursor:pointer">
+      Wejdź →
     </button>
-    <div id="api-key-error" style="color:var(--red);font-size:12px;text-align:center;margin-top:8px"></div>
-    <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:14px;line-height:1.5">
-      Klucz API znajdziesz na console.anthropic.com<br>Zaczyna się od <code style="background:var(--surface2);padding:2px 5px;border-radius:4px">sk-ant-</code>
-    </div>
+    <div id="api-key-error" style="color:var(--red);font-size:13px;margin-top:10px;min-height:20px"></div>
   </div>
 </div>
 
@@ -108,10 +105,7 @@
       <h1>🏋️ FitCoach</h1>
       <p id="header-sub">Asystent diety — Mateusz & Madzik</p>
     </div>
-    <button onclick="showApiModal()" title="Zmień klucz API"
-      style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--muted);font-size:11px;cursor:pointer">
-      🔑 API
-    </button>
+
   </div>
 </div>
 
@@ -827,63 +821,53 @@ function confirmDesc(kcal, label, macros) {
   setTimeout(() => { const el=document.getElementById('desc-result'); if(el) el.innerHTML = ''; }, 2000);
 }
 
-// ===================== API KEY =====================
-// Multi-storage: localStorage + cookie + sessionStorage dla Safari
-function setCookie(name, value, days) {
-  const d = new Date();
-  d.setTime(d.getTime() + days*24*60*60*1000);
-  document.cookie = name + '=' + encodeURIComponent(value) + ';expires=' + d.toUTCString() + ';path=/;SameSite=Strict';
-}
+// ===================== API KEY + PIN =====================
+const _AK = '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';
+const _PIN = '2480';
 
-function getCookie(name) {
-  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-  return match ? decodeURIComponent(match[2]) : '';
-}
+function getApiKey() { return _AK; }
 
-function saveKeyEverywhere(key) {
-  try { localStorage.setItem('fitcoach_apikey', key); } catch(e) {}
-  try { sessionStorage.setItem('fitcoach_apikey', key); } catch(e) {}
-  try { setCookie('fitcoach_apikey', key, 365); } catch(e) {}
-}
-
-function getApiKey() {
+function checkPin() {
   try {
-    const ls = localStorage.getItem('fitcoach_apikey');
-    if (ls) return ls;
+    const ok = sessionStorage.getItem('fitcoach_pin');
+    if (ok === 'true') return true;
   } catch(e) {}
   try {
-    const ss = sessionStorage.getItem('fitcoach_apikey');
-    if (ss) { saveKeyEverywhere(ss); return ss; }
+    const ok = localStorage.getItem('fitcoach_pin');
+    if (ok === 'true') return true;
   } catch(e) {}
-  const ck = getCookie('fitcoach_apikey');
-  if (ck) { saveKeyEverywhere(ck); return ck; }
-  return '';
+  return false;
 }
 
-function saveApiKey() {
-  const key = document.getElementById('api-key-input').value.trim();
-  if (!key.startsWith('sk-ant-')) {
-    document.getElementById('api-key-error').textContent = 'Klucz musi zaczynać się od sk-ant-';
-    return;
+function savePin() {
+  try { sessionStorage.setItem('fitcoach_pin', 'true'); } catch(e) {}
+  try { localStorage.setItem('fitcoach_pin', 'true'); } catch(e) {}
+}
+
+function verifyPin() {
+  const entered = document.getElementById('pin-input').value.trim();
+  if (entered === _PIN) {
+    savePin();
+    document.getElementById('api-modal').style.display = 'none';
+    document.getElementById('header-sub').textContent = '✅ Witaj!';
+    setTimeout(() => {
+      document.getElementById('header-sub').textContent = 'Asystent diety — Mateusz & Madzik';
+    }, 1500);
+  } else {
+    document.getElementById('api-key-error').textContent = '❌ Nieprawidłowy PIN';
+    document.getElementById('pin-input').value = '';
   }
-  saveKeyEverywhere(key);
-  document.getElementById('api-modal').style.display = 'none';
-  document.getElementById('header-sub').textContent = '✅ Klucz zapisany!';
-  setTimeout(() => {
-    document.getElementById('header-sub').textContent = 'Asystent diety — Mateusz & Madzik';
-  }, 2000);
 }
 
-function showApiModal() {
-  const modal = document.getElementById('api-modal');
-  modal.style.display = 'flex';
-  const existing = getApiKey();
-  if (existing) document.getElementById('api-key-input').value = existing;
-}
+function showApiModal() {}
 
 function checkApiKey() {
-  if (!getApiKey()) {
+  if (!checkPin()) {
     document.getElementById('api-modal').style.display = 'flex';
+    setTimeout(() => {
+      const el = document.getElementById('pin-input');
+      if (el) el.focus();
+    }, 100);
   }
 }
 
