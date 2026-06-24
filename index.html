@@ -220,6 +220,7 @@
       </div>
       <div id="eaten-log" style="margin-top:10px"></div>
       <button class="btn btn-ghost" style="margin-top:8px;font-size:12px" onclick="resetEaten()">🔄 Resetuj dzienny licznik</button>
+      <button class="btn" style="margin-top:8px;font-size:13px;font-weight:700;background:linear-gradient(135deg,#1a1a2e,#16213e);border:2px solid var(--accent-m);color:var(--accent-m)" onclick="endDay()">🌙 Zakończ dzień</button>
     </div>
 
   </div>
@@ -773,6 +774,61 @@ function saveWatch() {
   updateDash();
   document.getElementById('watch-result').innerHTML = `<span style="color:var(--green)">✅ Zapisano: ${spalone} kcal spalonych!</span>`;
   ['f-spalone','f-cwiczenie'].forEach(id => document.getElementById(id).value = '');
+}
+
+// ===================== ZAKOŃCZ DZIEŃ =====================
+function endDay() {
+  const p = PROFILES[cur];
+  const eaten = p.eatenKcal;
+  const G = goal(p);
+  const deficit = G && eaten ? G - eaten : null;
+
+  const msg = `Czy chcesz zakończyć dzień dla ${p.name}?\n\n` +
+    `📊 Podsumowanie:\n` +
+    `• Zjedzone: ${eaten} kcal\n` +
+    (G ? `• Cel: ${G} kcal\n` : '') +
+    (deficit !== null ? `• ${deficit >= 0 ? '✅ Deficyt: '+deficit+' kcal' : '⚠️ Nadwyżka: '+Math.abs(deficit)+' kcal'}\n` : '') +
+    `• Posiłków: ${p.eatenLog.length}\n\n` +
+    `Dane zostaną zapisane do historii i liczniki zresetowane.`;
+
+  if (!confirm(msg)) return;
+
+  // Zapisz do historii posiłków
+  if (p.eatenLog && p.eatenLog.length > 0) {
+    if (!p.mealHistory) p.mealHistory = [];
+    p.mealHistory.push({
+      dzien: todayStr(),
+      posilki: [...p.eatenLog],
+      suma: {
+        kcal: p.eatenKcal,
+        ...(p.eatenMacros || {})
+      }
+    });
+    if (p.mealHistory.length > 60) p.mealHistory = p.mealHistory.slice(-60);
+  }
+
+  // Reset liczników
+  p.eatenKcal = 0;
+  p.eatenLog = [];
+  p.eatenMacros = {b:0, w:0, t:0, blonnik:0, zelaz:0, wapn:0};
+  p.data.spalone_kcal = null;
+  p.data.cwiczenie_min = null;
+
+  saveToStorage();
+  updateDash();
+  renderEatenLog();
+  renderHistory();
+
+  // Pokaż potwierdzenie
+  const badge = document.getElementById('header-sub');
+  if (badge) {
+    badge.textContent = `✅ Dzień ${p.name} zakończony i zapisany!`;
+    badge.style.color = 'var(--green)';
+    setTimeout(() => {
+      badge.textContent = 'Asystent diety — Mateusz & Madzik';
+      badge.style.color = '';
+    }, 3000);
+  }
 }
 
 // ===================== TRYB KONTEKSTU =====================
