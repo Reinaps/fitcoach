@@ -675,14 +675,26 @@ function renderHistory() {
       const prev = arr[i+1];
       const dw = prev ? (h.waga-prev.waga).toFixed(1) : null;
       const dt = prev ? (h.tluszcz_proc-prev.tluszcz_proc).toFixed(1) : null;
-      return `<div class="history-item" style="margin-bottom:8px">
-        <div>
-          <div style="font-size:11px;color:var(--muted)">${h.data||'—'}</div>
-          <div style="font-size:16px;font-weight:700">${h.waga} kg ${dw?`<span style="font-size:11px;color:${dw<0?'var(--green)':'var(--red)'}">(${dw>0?'+':''}${dw})</span>`:''}</div>
-          <div style="font-size:11px;color:var(--muted)">Tłuszcz: ${h.tluszcz_proc}%${dt?` (${dt>0?'+':''}${dt}%)`:''}  |  Mięśnie: ${h.miesnie_kg} kg</div>
+      return `<div class="history-item" style="margin-bottom:8px;flex-direction:column;gap:8px">
+        <div style="display:flex;justify-content:space-between;width:100%">
+          <div>
+            <div style="font-size:11px;color:var(--muted)">${h.data||'—'}</div>
+            <div style="font-size:16px;font-weight:700">${h.waga} kg ${dw?`<span style="font-size:11px;color:${dw<0?'var(--green)':'var(--red)'}">(${dw>0?'+':''}${dw})</span>`:''}</div>
+            <div style="font-size:11px;color:var(--muted)">Tłuszcz: ${h.tluszcz_proc}%${dt?` (${dt>0?'+':''}${dt}%)`:''}  |  Mięśnie: ${h.miesnie_kg} kg</div>
+          </div>
+          <div style="text-align:right;font-size:11px;color:var(--muted)">
+            BMR: ${h.bmr} kcal<br>${h.spalone_kcal?`Spalone: ${h.spalone_kcal} kcal`:''}
+          </div>
         </div>
-        <div style="text-align:right;font-size:11px;color:var(--muted)">
-          BMR: ${h.bmr} kcal<br>${h.spalone_kcal?`Spalone: ${h.spalone_kcal} kcal`:''}
+        <div style="display:flex;gap:6px;width:100%">
+          <button onclick="editMeasurement('${h.data}')" 
+            style="flex:1;padding:6px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:11px;cursor:pointer">
+            ✏️ Edytuj
+          </button>
+          <button onclick="deleteMeasurement('${h.data}')"
+            style="flex:1;padding:6px;border-radius:8px;border:1px solid rgba(239,83,80,0.3);background:rgba(239,83,80,0.08);color:var(--red);font-size:11px;cursor:pointer">
+            🗑️ Usuń
+          </button>
         </div>
       </div>`;
     }).join('');
@@ -774,6 +786,48 @@ function saveWatch() {
   updateDash();
   document.getElementById('watch-result').innerHTML = `<span style="color:var(--green)">✅ Zapisano: ${spalone} kcal spalonych!</span>`;
   ['f-spalone','f-cwiczenie'].forEach(id => document.getElementById(id).value = '');
+}
+
+// ===================== EDYCJA HISTORII =====================
+function deleteMeasurement(data) {
+  if (!confirm(`Usunąć pomiar z ${data}?`)) return;
+  const p = PROFILES[cur];
+  p.history = p.history.filter(h => h.data !== data);
+  // Aktualizuj dane bieżące jeśli to był ostatni pomiar
+  if (p.history.length > 0) {
+    p.data = {...p.history[p.history.length-1]};
+  }
+  saveToStorage();
+  updateDash();
+  renderHistory();
+}
+
+function editMeasurement(data) {
+  const p = PROFILES[cur];
+  const h = p.history.find(h => h.data === data);
+  if (!h) return;
+
+  // Wypełnij pola w zakładce Skan
+  switchTab('skan');
+  setTimeout(() => {
+    const fields = {
+      'f-data': h.data,
+      'f-waga': h.waga,
+      'f-tluszcz': h.tluszcz_proc,
+      'f-miesnie': h.miesnie_kg,
+      'f-bmr': h.bmr,
+      'f-tluszcz-kg': h.tluszcz_kg
+    };
+    Object.entries(fields).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (el && val) el.value = val;
+    });
+    // Pokaż info
+    const result = document.getElementById('manual-result');
+    if (result) {
+      result.innerHTML = '<span style="color:var(--accent-m)">✏️ Edytujesz pomiar z ' + data + ' — popraw dane i kliknij Zapisz</span>';
+    }
+  }, 100);
 }
 
 // ===================== ZAKOŃCZ DZIEŃ =====================
