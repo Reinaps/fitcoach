@@ -290,4 +290,988 @@
       <div class="card-title">Szybkie pytania</div>
       <!-- TRYB KONTEKSTU -->
       <div style="display:flex;gap:6px;margin-bottom:10px">
-        <button id="ctx-dom-btn" onclick="setCtx('dom')
+        <button id="ctx-dom-btn" onclick="setCtx('dom')"
+          style="flex:1;padding:7px;border-radius:8px;border:2px solid var(--accent-m);background:rgba(79,195,247,0.10);color:var(--accent-m);font-size:12px;font-weight:700;cursor:pointer">
+          🏠 W domu
+        </button>
+        <button id="ctx-praca-btn" onclick="setCtx('praca')"
+          style="flex:1;padding:7px;border-radius:8px;border:2px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer">
+          💼 W pracy (mikrofala)
+        </button>
+      </div>
+      <div class="quick-wrap" id="quick-wrap">
+        <div class="qbtn" onclick="sq(ctxPrompt('sniadanie'))">🌅 Śniadanie</div>
+        <div class="qbtn" onclick="sq(ctxPrompt('lunch'))">☀️ Lunch</div>
+        <div class="qbtn" onclick="sq(ctxPrompt('kolacja'))">🌙 Kolacja</div>
+        <div class="qbtn" onclick="sq('Ile białka powinienem jeszcze zjeść dziś?')">💪 Białko</div>
+        <div class="qbtn" onclick="sq('Zrób mi plan posiłków na jutro z deficytem. Lunch i snack do zabrania do pracy (mikrofala).')">📋 Plan jutro</div>
+        <div class="qbtn" onclick="sq('Jak idzie mi postęp w redukcji tłuszczu?')">📊 Postęp</div>
+      </div>
+    </div>
+    <div class="chat-box" id="chat-box"></div>
+    <div class="chat-row">
+      <input class="chat-input" id="chat-input" placeholder="Napisz pytanie..." onkeydown="if(event.key==='Enter')sendChat()">
+      <button class="send-btn" id="send-btn" onclick="sendChat()">↑</button>
+    </div>
+  </div>
+
+  <!-- HISTORIA -->
+  <div class="section" id="section-historia">
+    <div class="card">
+      <div class="card-title">📈 Historia — <span id="hist-name">Mateusz</span></div>
+      <div id="hist-content"><div class="empty">Wgraj screenshoty żeby budować historię</div></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ===================== HELPERS (muszą być pierwsze) =====================
+function setCookie(name, value, days) {
+  try {
+    const d = new Date();
+    d.setTime(d.getTime() + days*24*60*60*1000);
+    const val = typeof value === 'string' && value.length > 3000 ? '' : value;
+    if (val) document.cookie = name + '=' + encodeURIComponent(val) + ';expires=' + d.toUTCString() + ';path=/;SameSite=Lax';
+  } catch(e) {}
+}
+
+function getCookie(name) {
+  try {
+    const m = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+    return m ? decodeURIComponent(m[2]) : null;
+  } catch(e) { return null; }
+}
+
+function todayStr() {
+  return new Date().toLocaleDateString('pl-PL');
+}
+
+// ===================== DANE STARTOWE =====================
+const PROFILES = {
+  mateusz: {
+    name:'Mateusz', gender:'M', age:36, height:184, activity:1.55,
+    prefs:'Ulubione dania: ragù z wołowiną, carbonara, carbonara ze szparagami, pasta z mascarpone i pieczarkami, bolognese z indykiem, pasta ze szpinakiem i łososiem w mascarpone, sos pomidorowy z mascarpone. Ryż jaśminowy z curry z indykiem lub vege curry (batat, cukinia, ziemniak, papryka, ciecierzyca). Pełnoziarnisty makaron chiński z warzywami i indykiem w sosie z czarnej fasoli lub teriyaki. Ramen tonkotsu. Focaccia domowa. Białko: tuńczyk, kurczak, indyk, łosoś, makrela, owoce morza. Śniadanie: jajka + wędlina + warzywa + Skyr 26g białka. Brak alergii, je wszystko, gotuje codziennie chętnie.',
+    data: {data:'21.06.2026', waga:73.9, tluszcz_proc:17.7, tluszcz_kg:13.08, miesnie_kg:57.7, bmr:1700, woda_proc:56.2, mineraly_kg:3.1, bialko_proc:21.9, trzewna_poziom:7.0, spalone_kcal:null, cwiczenie_min:null},
+    history: [{data:'21.06.2026', waga:73.9, tluszcz_proc:17.7, tluszcz_kg:13.08, miesnie_kg:57.7, bmr:1700, woda_proc:56.2, mineraly_kg:3.1, bialko_proc:21.9, trzewna_poziom:7.0, spalone_kcal:null, cwiczenie_min:null}],
+    chat: [], eatenKcal: 0, eatenLog: [], eatenMacros: {b:0, w:0, t:0}
+  },
+  madzik: {
+    name:'Madzik', gender:'K', age:35, height:167, activity:1.55,
+    prefs:'',
+    data: {data:'23.06.2026', waga:68.5, tluszcz_proc:33.1, tluszcz_kg:22.7, miesnie_kg:42.6, bmr:1375, woda_proc:48.0, mineraly_kg:3.2, bialko_proc:14.2, trzewna_poziom:6.0, spalone_kcal:null, cwiczenie_min:null},
+    history: [
+      {data:'21.06.2026', waga:69.5, tluszcz_proc:34.0, tluszcz_kg:23.6, miesnie_kg:42.5, bmr:1378, woda_proc:47.5, mineraly_kg:3.4, bialko_proc:13.7, trzewna_poziom:6.0, spalone_kcal:null, cwiczenie_min:null},
+      {data:'23.06.2026', waga:68.5, tluszcz_proc:33.1, tluszcz_kg:22.7, miesnie_kg:42.6, bmr:1375, woda_proc:48.0, mineraly_kg:3.2, bialko_proc:14.2, trzewna_poziom:6.0, spalone_kcal:null, cwiczenie_min:null}
+    ],
+    chat: [], eatenKcal: 0, eatenLog: [], eatenMacros: {b:0, w:0, t:0}
+  }
+};
+
+let cur = 'mateusz';
+let imgs = { waga: null, zegarek: null };
+let busy = false;
+
+// ===================== PROFILE / TAB =====================
+function switchProfile(name) {
+  cur = name;
+  const f = name === 'madzik';
+  document.getElementById('btn-m').className = 'profile-btn' + (name==='mateusz'?' active-m':'');
+  document.getElementById('btn-f').className = 'profile-btn' + (f?' active-f':'');
+  document.getElementById('send-btn').className = 'send-btn' + (f?' f':'');
+  document.getElementById('chat-input').className = 'chat-input';
+  document.getElementById('hist-name').textContent = PROFILES[name].name;
+  imgs = { waga: null, zegarek: null };
+  ['waga-preview','zegarek-preview'].forEach(id => { const el=document.getElementById(id); if(el) el.innerHTML=''; });
+  ['btn-waga','btn-zegarek'].forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
+  updateDash();
+  renderChat();
+  renderHistory();
+  renderEatenLog();
+}
+
+function switchTab(t) {
+  document.querySelectorAll('.tab').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(el=>el.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('active');
+  document.getElementById('section-'+t).classList.add('active');
+}
+
+// ===================== DASHBOARD =====================
+function tdee(p) {
+  const d = p.data;
+  if (!d.bmr) return null;
+  return d.spalone_kcal ? Math.round(d.bmr + d.spalone_kcal) : Math.round(d.bmr * p.activity);
+}
+function goal(p) {
+  const t = tdee(p); if (!t) return null;
+  return t - (p.gender==='M' ? 400 : 300);
+}
+
+function updateDash() {
+  const p = PROFILES[cur], d = p.data;
+  const T = tdee(p), G = goal(p), E = p.eatenKcal;
+  const R = G ? G - E : null;
+
+  set('s-waga', d.waga ? d.waga.toFixed(1) : '—');
+  set('s-tluszcz', d.tluszcz_proc ? d.tluszcz_proc.toFixed(1) : '—');
+  set('s-miesnie', d.miesnie_kg ? d.miesnie_kg.toFixed(1) : '—');
+  set('s-bmr', d.bmr || '—');
+  set('s-spalone', d.spalone_kcal ? d.spalone_kcal.toLocaleString() : '—');
+  set('s-cwiczenie', d.cwiczenie_min ? `⏱ ${d.cwiczenie_min} min` : 'Brak danych zegarka');
+  set('cal-goal-disp', G ? `Cel: ${G} kcal` : 'Cel: —');
+  set('cal-tdee-disp', T ? `TDEE: ${T} kcal` : 'TDEE: —');
+  set('cal-eaten-lbl', `Zjedzone: ${E} kcal`);
+  set('cal-deficit-lbl', G && T ? `Deficyt: ${T-G} kcal` : 'Deficyt: —');
+
+  if (R !== null) {
+    set('cal-remaining', R > 0 ? `${R} kcal` : '✅ Cel osiągnięty!');
+    const pct = Math.min(100, Math.round(E/G*100));
+    const bar = document.getElementById('cal-bar');
+    bar.style.width = pct + '%';
+    bar.style.background = pct>95?'var(--red)':pct>75?'var(--orange)':'var(--green)';
+  } else {
+    set('cal-remaining', '— kcal');
+    document.getElementById('cal-bar').style.width = '0%';
+  }
+
+  renderMacros(p, G);
+}
+
+function microRow(name, eaten, goalVal, unit) {
+  const pct = Math.min(100, goalVal > 0 ? Math.round(eaten/goalVal*100) : 0);
+  const over = eaten > goalVal;
+  const color = over ? 'var(--red)' : pct > 70 ? 'var(--green)' : 'var(--orange)';
+  return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+    <div style="font-size:11px;width:80px;color:var(--muted)">${name}</div>
+    <div style="flex:1;height:5px;background:var(--border);border-radius:99px;overflow:hidden">
+      <div style="width:${pct}%;height:100%;background:${color};border-radius:99px"></div>
+    </div>
+    <div style="font-size:11px;font-weight:600;width:70px;text-align:right;color:${color}">${eaten}${unit} <span style="color:var(--muted);font-weight:400">/ ${goalVal}${unit}</span></div>
+  </div>`;
+}
+
+function renderMacros(p, G) {
+  const box = document.getElementById('macro-box');
+  if (!p.data.waga || !G) { box.innerHTML='<div class="empty">Wpisz dane z wagi w zakładce Skan żeby zobaczyć makra</div>'; return; }
+  const prot = Math.round(p.data.waga * 2);
+  const protKcal = prot * 4;
+  const fatKcal = Math.round(G * 0.28);
+  const fat = Math.round(fatKcal/9);
+  const carbKcal = Math.max(0, G - protKcal - fatKcal);
+  const carbs = Math.round(carbKcal/4);
+  const em = p.eatenMacros || {b:0, w:0, t:0};
+
+  function macroRow(name, eaten, goal, color) {
+    const pct = Math.min(100, goal > 0 ? Math.round(eaten/goal*100) : 0);
+    const over = eaten > goal;
+    return `<div class="macro-row">
+      <div class="macro-name">${name}</div>
+      <div class="macro-bar-track" style="position:relative">
+        <div class="macro-bar-fill" style="width:${pct}%;background:${over?'var(--red)':color}"></div>
+      </div>
+      <div style="font-size:11px;font-weight:600;width:90px;text-align:right;color:${over?'var(--red)':color}">
+        ${eaten}g <span style="color:var(--muted);font-weight:400">/ ${goal}g</span>
+      </div>
+    </div>`;
+  }
+
+  box.innerHTML = 
+    macroRow('Białko', em.b, prot, '#4fc3f7') +
+    macroRow('Węgle', em.w, carbs, '#ffa726') +
+    macroRow('Tłuszcz', em.t, fat, '#ef5350') +
+    `<div style="font-size:10px;color:var(--muted);margin-top:6px;display:flex;justify-content:space-between">
+      <span>Cel: ${G} kcal | deficyt ${p.gender==='M'?400:300} kcal</span>
+      <span style="color:var(--accent-m)">${em.b+em.w+em.t > 0 ? 'Zjedzone: '+p.eatenKcal+' kcal' : 'Dodaj posiłek poniżej'}</span>
+    </div>` +
+    (em.blonnik||em.zelaz||em.wapn ? `
+    <div style="margin-top:10px;padding:10px;background:var(--surface2);border-radius:8px">
+      <div style="font-size:10px;color:var(--muted);margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">Mikroskładniki dziś</div>
+      ${microRow('🌾 Błonnik', em.blonnik||0, p.gender==='M'?30:25, 'g')}
+      ${microRow('🔴 Żelazo', em.zelaz||0, p.gender==='M'?10:18, 'mg')}
+      ${microRow('🦷 Wapń', em.wapn||0, 1000, 'mg')}
+    </div>` : '');
+}
+
+function set(id, v) { const el=document.getElementById(id); if(el) el.textContent=v; }
+
+// ===================== EATEN =====================
+function addEaten() {
+  const input = document.getElementById('eaten-input');
+  const val = parseInt(input.value);
+  if (!val || val <= 0 || val > 9999) return;
+  const p = PROFILES[cur];
+  p.eatenKcal += val;
+  p.eatenLog.push({ kcal: val, time: new Date().toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'}) });
+  input.value = '';
+  updateDash();
+  renderEatenLog();
+}
+
+function resetEaten() {
+  const p = PROFILES[cur];
+  p.eatenKcal = 0;
+  p.eatenLog = [];
+  p.eatenMacros = {b:0, w:0, t:0};
+  updateDash();
+  renderEatenLog();
+}
+
+function renderEatenLog() {
+  const p = PROFILES[cur];
+  const el = document.getElementById('eaten-log');
+  if (!el || !p.eatenLog) return;
+  if (!p.eatenLog.length) { el.innerHTML = ''; return; }
+  el.innerHTML = '<div style="font-size:11px;color:var(--muted);margin-bottom:4px">Dodane dziś:</div>' +
+    p.eatenLog.map(e=>`<div style="font-size:12px;padding:5px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between"><span style="color:var(--muted)">${e.time}${e.label ? ' · '+e.label : ''}</span><span style="font-weight:600;color:var(--green)">${e.kcal} kcal</span></div>`).join('');
+}
+
+// ===================== UPLOAD + ANALYZE =====================
+function handleUpload(ev, type) {
+  const file = ev.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    imgs[type] = e.target.result.split(',')[1];
+    document.getElementById(type+'-preview').innerHTML =
+      `<div style="margin-top:10px;padding:8px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
+        <img src="${e.target.result}" style="width:100%;border-radius:6px;max-height:160px;object-fit:contain">
+        <div style="font-size:12px;color:var(--green);margin-top:6px">✅ Wgrano — kliknij Analizuj</div>
+      </div>`;
+    document.getElementById('btn-'+type).style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function analyzeImage(type) {
+  if (!imgs[type]) return;
+  const p = PROFILES[cur];
+  const btn = document.getElementById('btn-'+type);
+  const prev = document.getElementById(type+'-preview');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Analizuję...';
+
+  const prompt = type === 'waga'
+    ? 'Odczytaj dane z tego screenshota z wagi Huawei Body Fat Scale. Zwróć TYLKO JSON bez żadnego tekstu: {"waga":number,"bmi":number,"tluszcz_proc":number,"tluszcz_kg":number,"miesnie_kg":number,"bmr":number,"woda_proc":number,"mineraly_kg":number,"bialko_proc":number,"trzewna_poziom":number,"data":"DD.MM.YYYY"}'
+    : 'Odczytaj dane aktywności z tego screenshota Huawei Health. Zwróć TYLKO JSON bez żadnego tekstu: {"spalone_kcal":number,"cwiczenie_min":number,"na_nogach_godz":number,"data":"DD.MM.YYYY"}';
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST', headers:{'Content-Type':'application/json','x-api-key':getApiKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-6', max_tokens:500,
+        messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:'image/jpeg',data:imgs[type]}},
+          {type:'text',text:prompt}
+        ]}]
+      })
+    });
+    const data = await res.json();
+    const text = data.content[0].text.replace(/```json|```/g,'').trim();
+    const parsed = JSON.parse(text);
+
+    if (type === 'waga') {
+      Object.assign(p.data, {
+        data: parsed.data, waga: parsed.waga, tluszcz_proc: parsed.tluszcz_proc,
+        tluszcz_kg: parsed.tluszcz_kg, miesnie_kg: parsed.miesnie_kg, bmr: parsed.bmr,
+        woda_proc: parsed.woda_proc, mineraly_kg: parsed.mineraly_kg,
+        bialko_proc: parsed.bialko_proc, trzewna_poziom: parsed.trzewna_poziom
+      });
+      p.history = p.history.filter(h=>h.data!==parsed.data);
+      p.history.push({...p.data});
+      p.history.sort((a,b)=>a.data.localeCompare(b.data));
+      prev.innerHTML += `<div class="analysis-box">⚖️ <b>Odczytano (${parsed.data}):</b>\nWaga: ${parsed.waga} kg\nTłuszcz: ${parsed.tluszcz_proc}% (${parsed.tluszcz_kg} kg)\nMięśnie: ${parsed.miesnie_kg} kg\nBMR: ${parsed.bmr} kcal\n✅ Dane zaktualizowane!</div>`;
+    } else {
+      p.data.spalone_kcal = parsed.spalone_kcal;
+      p.data.cwiczenie_min = parsed.cwiczenie_min;
+      if (p.history.length) {
+        p.history[p.history.length-1].spalone_kcal = parsed.spalone_kcal;
+        p.history[p.history.length-1].cwiczenie_min = parsed.cwiczenie_min;
+      }
+      prev.innerHTML += `<div class="analysis-box">⌚ <b>Odczytano (${parsed.data}):</b>\nSpalone: ${parsed.spalone_kcal} kcal\nĆwiczenia: ${parsed.cwiczenie_min} min\nNa nogach: ${parsed.na_nogach_godz} godz.\n✅ Dane zaktualizowane!</div>`;
+    }
+    updateDash();
+    renderHistory();
+    btn.innerHTML = '✅ Gotowe!';
+    setTimeout(()=>{ btn.disabled=false; btn.innerHTML='Analizuj ponownie ⚡'; }, 3000);
+  } catch(e) {
+    prev.innerHTML += `<div style="color:var(--red);font-size:12px;margin-top:8px">❌ Błąd: ${e.message}</div>`;
+    btn.disabled = false; btn.innerHTML = 'Spróbuj ponownie';
+  }
+}
+
+// ===================== CHAT =====================
+function systemPrompt() {
+  const p = PROFILES[cur], d = p.data;
+  const T = tdee(p), G = goal(p);
+  const hist = p.history.length > 1
+    ? '\nHISTORIA:\n' + p.history.map(h=>`  ${h.data}: ${h.waga}kg, tłuszcz ${h.tluszcz_proc}%, mięśnie ${h.miesnie_kg}kg`).join('\n')
+    : '';
+  return `Jesteś asystentem dietetycznym dla ${p.name} (${p.gender==='M'?'mężczyzna':'kobieta'}, ${p.age}l, ${p.height}cm, umiarkowanie aktywny/a).
+
+DANE (${d.data||'brak pomiaru'}):
+Waga: ${d.waga||'?'}kg | Tłuszcz: ${d.tluszcz_proc||'?'}% (${d.tluszcz_kg||'?'}kg) | Mięśnie: ${d.miesnie_kg||'?'}kg
+BMR: ${d.bmr||'?'} kcal | TDEE: ${T||'?'} kcal | Cel: ${G||'?'} kcal (deficyt ${p.gender==='M'?400:300} kcal)
+Spalone zegarek: ${d.spalone_kcal||'brak'} kcal | Ćwiczenia: ${d.cwiczenie_min||'?'} min
+Zjedzone dziś: ${p.eatenKcal} kcal | Pozostało: ${G?G-p.eatenKcal:'?'} kcal
+Cel białka: min ${d.waga?Math.round(d.waga*2):'?'}g/dzień
+${p.prefs ? '\nPREFERENCJE:\n'+p.prefs : ''}${hist}
+
+Odpowiadaj po polsku. Bądź konkretny — do każdego proponowanego posiłku podaj kcal i gramy makro (B/W/T). Priorytet: wysokie białko, zachowanie mięśni.`;
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg || busy) return;
+  input.value = '';
+  addMsg(msg, 'user');
+  busy = true;
+  const p = PROFILES[cur];
+  p.chat.push({role:'user',content:msg});
+  const loading = addMsg('⏳ Myślę...', 'ai');
+  loading.classList.add('loading');
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST', headers:{'Content-Type':'application/json','x-api-key':getApiKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-6', max_tokens:1000,
+        system: systemPrompt(),
+        messages: p.chat.slice(-10)
+      })
+    });
+    const data = await res.json();
+    const reply = data.content[0].text;
+    loading.classList.remove('loading');
+    loading.textContent = reply;
+    p.chat.push({role:'assistant',content:reply});
+
+    // Auto-detect eaten kcal
+    if (/zjadł[ae]m?/i.test(msg)) {
+      const m = msg.match(/(\d{3,4})\s*kcal/i);
+      if (m) { p.eatenKcal += parseInt(m[1]); p.eatenLog.push({kcal:parseInt(m[1]),time:new Date().toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'})}); updateDash(); renderEatenLog(); }
+    }
+  } catch(e) {
+    loading.textContent = '❌ Błąd. Spróbuj ponownie.';
+  } finally {
+    busy = false;
+    document.getElementById('chat-box').scrollTop = 99999;
+  }
+}
+
+function sq(msg) { document.getElementById('chat-input').value=msg; sendChat(); }
+
+function addMsg(text, role) {
+  const box = document.getElementById('chat-box');
+  const div = document.createElement('div');
+  div.className = `msg msg-${role}` + (role==='user'&&cur==='madzik'?' f':'');
+  div.textContent = text;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+  return div;
+}
+
+function renderChat() {
+  const p = PROFILES[cur], box = document.getElementById('chat-box');
+  box.innerHTML = '';
+  if (!p.chat.length) {
+    const div = document.createElement('div');
+    div.className = 'msg msg-ai';
+    div.textContent = `👋 Cześć ${p.name}! Wgraj screenshoty z wagi i zegarka (📷 Skan), potem pytaj co chcesz — co zjeść, ile kalorii zostało, jak idzie postęp!`;
+    box.appendChild(div);
+  } else {
+    p.chat.forEach(m => { const d=document.createElement('div'); d.className=`msg msg-${m.role}`; d.textContent=m.content; box.appendChild(d); });
+  }
+  box.scrollTop = box.scrollHeight;
+}
+
+// ===================== HISTORIA =====================
+function renderHistory() {
+  const p = PROFILES[cur], el = document.getElementById('hist-content');
+  let html = '';
+
+  // Pomiary z wagi
+  if (p.history && p.history.length) {
+    html += `<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);margin-bottom:8px">⚖️ Pomiary ciała</div>`;
+    html += [...p.history].reverse().map((h,i,arr)=>{
+      const prev = arr[i+1];
+      const dw = prev ? (h.waga-prev.waga).toFixed(1) : null;
+      const dt = prev ? (h.tluszcz_proc-prev.tluszcz_proc).toFixed(1) : null;
+      return `<div class="history-item" style="margin-bottom:8px;flex-direction:column;gap:8px">
+        <div style="display:flex;justify-content:space-between;width:100%">
+          <div>
+            <div style="font-size:11px;color:var(--muted)">${h.data||'—'}</div>
+            <div style="font-size:16px;font-weight:700">${h.waga} kg ${dw?`<span style="font-size:11px;color:${dw<0?'var(--green)':'var(--red)'}">(${dw>0?'+':''}${dw})</span>`:''}</div>
+            <div style="font-size:11px;color:var(--muted)">Tłuszcz: ${h.tluszcz_proc}%${dt?` (${dt>0?'+':''}${dt}%)`:''}  |  Mięśnie: ${h.miesnie_kg} kg</div>
+          </div>
+          <div style="text-align:right;font-size:11px;color:var(--muted)">
+            BMR: ${h.bmr} kcal<br>${h.spalone_kcal?`Spalone: ${h.spalone_kcal} kcal`:''}
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;width:100%">
+          <button onclick="editMeasurement('${h.data}')" 
+            style="flex:1;padding:6px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:11px;cursor:pointer">
+            ✏️ Edytuj
+          </button>
+          <button onclick="deleteMeasurement('${h.data}')"
+            style="flex:1;padding:6px;border-radius:8px;border:1px solid rgba(239,83,80,0.3);background:rgba(239,83,80,0.08);color:var(--red);font-size:11px;cursor:pointer">
+            🗑️ Usuń
+          </button>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    html += '<div class="empty">Wpisz dane z wagi w zakładce 📷 Skan</div>';
+  }
+
+  // Dziennik posiłków
+  const meals = p.mealHistory || [];
+  html += `<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);margin:16px 0 8px">🍽️ Dziennik posiłków</div>`;
+  if (meals.length) {
+    html += [...meals].reverse().map(day => `
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-size:13px;font-weight:700">${day.dzien}</div>
+          <div style="font-size:12px;color:var(--accent-m);font-weight:600">${day.suma?.kcal||0} kcal</div>
+        </div>
+        <div style="display:flex;gap:10px;font-size:11px;flex-wrap:wrap;margin-bottom:6px">
+          <span style="color:#4fc3f7">B: ${day.suma?.b||0}g</span>
+          <span style="color:#ffa726">W: ${day.suma?.w||0}g</span>
+          <span style="color:#ef5350">T: ${day.suma?.t||0}g</span>
+          ${day.suma?.blonnik ? `<span style="color:var(--muted)">🌾 ${day.suma.blonnik}g</span>` : ''}
+          ${day.suma?.zelaz ? `<span style="color:var(--muted)">🔴 ${day.suma.zelaz}mg</span>` : ''}
+          ${day.suma?.wapn ? `<span style="color:var(--muted)">🦷 ${day.suma.wapn}mg</span>` : ''}
+        </div>
+        <div style="font-size:11px">
+          ${day.posilki.map(pp=>`<div style="padding:3px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between"><span style="color:var(--muted)">${pp.time} · ${pp.label||'posiłek'}</span><b style="color:var(--text)">${pp.kcal} kcal</b></div>`).join('')}
+        </div>
+      </div>`).join('');
+  } else {
+    html += `<div style="font-size:12px;color:var(--muted);text-align:center;padding:12px">Dziennik pojawi się jutro po automatycznym resetcie</div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+// ===================== ZAPIS RĘCZNY =====================
+function saveManual() {
+  const p = PROFILES[cur];
+  const data = document.getElementById('f-data').value || new Date().toLocaleDateString('pl-PL');
+  const waga = parseFloat(document.getElementById('f-waga').value);
+  const tluszcz = parseFloat(document.getElementById('f-tluszcz').value);
+  const miesnie = parseFloat(document.getElementById('f-miesnie').value);
+  const bmr = parseInt(document.getElementById('f-bmr').value);
+  const tluszcz_kg = parseFloat(document.getElementById('f-tluszcz-kg').value);
+
+  if (!waga || !tluszcz || !miesnie || !bmr) {
+    document.getElementById('manual-result').innerHTML = '<span style="color:var(--red)">❌ Wypełnij przynajmniej: wagę, % tłuszczu, mięśnie i BMR</span>';
+    return;
+  }
+
+  const entry = {
+    data, waga, tluszcz_proc: tluszcz, tluszcz_kg: tluszcz_kg || +(waga*tluszcz/100).toFixed(2),
+    miesnie_kg: miesnie, bmr,
+    spalone_kcal: p.data.spalone_kcal || null,
+    cwiczenie_min: p.data.cwiczenie_min || null
+  };
+
+  Object.assign(p.data, entry);
+  p.history = p.history.filter(h => h.data !== data);
+  p.history.push({...entry});
+  p.history.sort((a,b) => a.data.localeCompare(b.data));
+
+  updateDash();
+  renderHistory();
+
+  document.getElementById('manual-result').innerHTML = `<span style="color:var(--green)">✅ Zapisano pomiar z ${data}!</span>`;
+  // Clear fields
+  ['f-data','f-waga','f-tluszcz','f-miesnie','f-bmr','f-tluszcz-kg'].forEach(id => document.getElementById(id).value = '');
+}
+
+function saveWatch() {
+  const p = PROFILES[cur];
+  const spalone = parseInt(document.getElementById('f-spalone').value);
+  const cwiczenie = parseInt(document.getElementById('f-cwiczenie').value);
+
+  if (!spalone) {
+    document.getElementById('watch-result').innerHTML = '<span style="color:var(--red)">❌ Podaj spalone kcal</span>';
+    return;
+  }
+
+  p.data.spalone_kcal = spalone;
+  p.data.cwiczenie_min = cwiczenie || null;
+  if (p.history.length) {
+    p.history[p.history.length-1].spalone_kcal = spalone;
+    p.history[p.history.length-1].cwiczenie_min = cwiczenie || null;
+  }
+
+  updateDash();
+  document.getElementById('watch-result').innerHTML = `<span style="color:var(--green)">✅ Zapisano: ${spalone} kcal spalonych!</span>`;
+  ['f-spalone','f-cwiczenie'].forEach(id => document.getElementById(id).value = '');
+}
+
+// ===================== EDYCJA HISTORII =====================
+function deleteMeasurement(data) {
+  if (!confirm(`Usunąć pomiar z ${data}?`)) return;
+  const p = PROFILES[cur];
+  p.history = p.history.filter(h => h.data !== data);
+  // Aktualizuj dane bieżące jeśli to był ostatni pomiar
+  if (p.history.length > 0) {
+    p.data = {...p.history[p.history.length-1]};
+  }
+  saveToStorage();
+  updateDash();
+  renderHistory();
+}
+
+function editMeasurement(data) {
+  const p = PROFILES[cur];
+  const h = p.history.find(h => h.data === data);
+  if (!h) return;
+
+  // Wypełnij pola w zakładce Skan
+  switchTab('skan');
+  setTimeout(() => {
+    const fields = {
+      'f-data': h.data,
+      'f-waga': h.waga,
+      'f-tluszcz': h.tluszcz_proc,
+      'f-miesnie': h.miesnie_kg,
+      'f-bmr': h.bmr,
+      'f-tluszcz-kg': h.tluszcz_kg
+    };
+    Object.entries(fields).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (el && val) el.value = val;
+    });
+    // Pokaż info
+    const result = document.getElementById('manual-result');
+    if (result) {
+      result.innerHTML = '<span style="color:var(--accent-m)">✏️ Edytujesz pomiar z ' + data + ' — popraw dane i kliknij Zapisz</span>';
+    }
+  }, 100);
+}
+
+// ===================== ZAKOŃCZ DZIEŃ =====================
+function endDay() {
+  const p = PROFILES[cur];
+  const eaten = p.eatenKcal;
+  const G = goal(p);
+  const deficit = G && eaten ? G - eaten : null;
+
+  const msg = `Czy chcesz zakończyć dzień dla ${p.name}?\n\n` +
+    `📊 Podsumowanie:\n` +
+    `• Zjedzone: ${eaten} kcal\n` +
+    (G ? `• Cel: ${G} kcal\n` : '') +
+    (deficit !== null ? `• ${deficit >= 0 ? '✅ Deficyt: '+deficit+' kcal' : '⚠️ Nadwyżka: '+Math.abs(deficit)+' kcal'}\n` : '') +
+    `• Posiłków: ${p.eatenLog.length}\n\n` +
+    `Dane zostaną zapisane do historii i liczniki zresetowane.`;
+
+  if (!confirm(msg)) return;
+
+  // Zapisz do historii posiłków
+  if (p.eatenLog && p.eatenLog.length > 0) {
+    if (!p.mealHistory) p.mealHistory = [];
+    p.mealHistory.push({
+      dzien: todayStr(),
+      posilki: [...p.eatenLog],
+      suma: {
+        kcal: p.eatenKcal,
+        ...(p.eatenMacros || {})
+      }
+    });
+    if (p.mealHistory.length > 60) p.mealHistory = p.mealHistory.slice(-60);
+  }
+
+  // Reset liczników
+  p.eatenKcal = 0;
+  p.eatenLog = [];
+  p.eatenMacros = {b:0, w:0, t:0, blonnik:0, zelaz:0, wapn:0};
+  p.data.spalone_kcal = null;
+  p.data.cwiczenie_min = null;
+
+  saveToStorage();
+  updateDash();
+  renderEatenLog();
+  renderHistory();
+
+  // Pokaż potwierdzenie
+  const badge = document.getElementById('header-sub');
+  if (badge) {
+    badge.textContent = `✅ Dzień ${p.name} zakończony i zapisany!`;
+    badge.style.color = 'var(--green)';
+    setTimeout(() => {
+      badge.textContent = 'Asystent diety — Mateusz & Madzik';
+      badge.style.color = '';
+    }, 3000);
+  }
+}
+
+// ===================== TRYB KONTEKSTU =====================
+let currentCtx = 'dom';
+
+function setCtx(ctx) {
+  currentCtx = ctx;
+  const isDom = ctx === 'dom';
+  document.getElementById('ctx-dom-btn').style.borderColor = isDom ? 'var(--accent-m)' : 'var(--border)';
+  document.getElementById('ctx-dom-btn').style.background = isDom ? 'rgba(79,195,247,0.10)' : 'transparent';
+  document.getElementById('ctx-dom-btn').style.color = isDom ? 'var(--accent-m)' : 'var(--muted)';
+  document.getElementById('ctx-praca-btn').style.borderColor = !isDom ? 'var(--orange)' : 'var(--border)';
+  document.getElementById('ctx-praca-btn').style.background = !isDom ? 'rgba(255,167,38,0.10)' : 'transparent';
+  document.getElementById('ctx-praca-btn').style.color = !isDom ? 'var(--orange)' : 'var(--muted)';
+}
+
+function ctxPrompt(meal) {
+  const praca = currentCtx === 'praca';
+  if (meal === 'sniadanie') return 'Jestem głodny, co zjeść na śniadanie?' + (praca ? ' (jestem w pracy, mam tylko mikrofalę)' : '');
+  if (meal === 'lunch') return praca
+    ? 'Co zjeść na lunch w pracy? Mam tylko mikrofalówkę — propozycje które mogę podgrzać lub zjeść na zimno. Ile zostało mi kalorii?'
+    : 'Co zjeść na lunch? Ile zostało mi kalorii?';
+  if (meal === 'kolacja') return 'Co na kolację żeby domknąć deficyt?' + (praca ? ' (wróciłem z pracy, gotuję w domu)' : '');
+  return '';
+}
+
+// ===================== PRZELICZNIK SKŁADNIKÓW =====================
+function setEatenMode(mode) {
+  const isKcal = mode === 'kcal';
+  document.getElementById('mode-kcal').style.display = isKcal ? 'block' : 'none';
+  document.getElementById('mode-desc').style.display = !isKcal ? 'block' : 'none';
+  document.getElementById('mode-kcal-btn').style.borderColor = isKcal ? 'var(--accent-m)' : 'var(--border)';
+  document.getElementById('mode-kcal-btn').style.background = isKcal ? 'rgba(79,195,247,0.12)' : 'transparent';
+  document.getElementById('mode-kcal-btn').style.color = isKcal ? 'var(--accent-m)' : 'var(--muted)';
+  document.getElementById('mode-desc-btn').style.borderColor = !isKcal ? 'var(--accent-m)' : 'var(--border)';
+  document.getElementById('mode-desc-btn').style.background = !isKcal ? 'rgba(79,195,247,0.12)' : 'transparent';
+  document.getElementById('mode-desc-btn').style.color = !isKcal ? 'var(--accent-m)' : 'var(--muted)';
+}
+
+async function calcDesc() {
+  const textarea = document.getElementById('desc-input');
+  const desc = textarea.value.trim();
+  if (!desc) return;
+  const btn = document.getElementById('btn-calc-desc');
+  const result = document.getElementById('desc-result');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Liczę...';
+  result.innerHTML = '';
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST', headers: {'Content-Type': 'application/json', 'x-api-key': getApiKey(), 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true'},
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6', max_tokens: 600,
+        messages: [{role: 'user', content: `Jesteś ekspertem ds. żywienia. Użytkownik opisał co zjadł: "${desc}". 
+Oblicz kalorie, makro i mikroskładniki. Zwróć TYLKO JSON bez tekstu:
+{"pozycje":[{"nazwa":"string","ilosc":"string","kcal":number,"bialko":number,"weglow":number,"tluszcz":number,"blonnik":number,"zelaz":number,"wapn":number}],"suma":{"kcal":number,"bialko":number,"weglow":number,"tluszcz":number,"blonnik":number,"zelaz":number,"wapn":number}}
+Szacuj rozsądnie. blonnik w gramach, zelaz w mg, wapn w mg.`}]
+      })
+    });
+    const data = await res.json();
+    if (!data.content || !data.content[0] || !data.content[0].text) throw new Error('Brak odpowiedzi z API');
+    let rawText = data.content[0].text.replace(/```json|```/g,'').trim();
+    const jsonStart = rawText.indexOf('{');
+    const jsonEnd = rawText.lastIndexOf('}');
+    if (jsonStart === -1 || jsonEnd === -1) throw new Error('Brak JSON w odpowiedzi');
+    rawText = rawText.substring(jsonStart, jsonEnd+1);
+    const parsed = JSON.parse(rawText);
+    if (!parsed.suma || !parsed.pozycje) throw new Error('Nieprawidłowy format odpowiedzi');
+    const s = parsed.suma;
+
+    // Zapisz dane do zmiennej globalnej - bezpieczne dla Safari
+    window._pendingMeal = {
+      kcal: s.kcal,
+      label: desc.substring(0, 40).replace(/['"]/g, '') + '...',
+      macros: {b: s.bialko, w: s.weglow, t: s.tluszcz, blonnik: s.blonnik||0, zelaz: s.zelaz||0, wapn: s.wapn||0}
+    };
+
+    result.innerHTML = `
+      <div class="analysis-box">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Szacowane składniki:</div>
+        ${parsed.pozycje.map(p=>`
+          <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px">
+            <span>${p.nazwa} <span style="color:var(--muted)">(${p.ilosc})</span></span>
+            <span style="font-weight:600">${p.kcal} kcal</span>
+          </div>`).join('')}
+        <div style="margin-top:10px;padding:10px;background:var(--surface);border-radius:8px">
+          <div style="font-size:16px;font-weight:700;margin-bottom:8px">Łącznie: ${s.kcal} kcal</div>
+          <div style="display:flex;gap:10px;font-size:12px;flex-wrap:wrap;margin-bottom:8px">
+            <span style="color:#4fc3f7">B: ${s.bialko}g</span>
+            <span style="color:#ffa726">W: ${s.weglow}g</span>
+            <span style="color:#ef5350">T: ${s.tluszcz}g</span>
+          </div>
+          <div style="height:1px;background:var(--border);margin:6px 0"></div>
+          <div style="display:flex;gap:10px;font-size:11px;flex-wrap:wrap;color:var(--muted)">
+            <span>🌾 Błonnik: <b style="color:var(--text)">${s.blonnik||0}g</b></span>
+            <span>🔴 Żelazo: <b style="color:var(--text)">${s.zelaz||0}mg</b></span>
+            <span>🦷 Wapń: <b style="color:var(--text)">${s.wapn||0}mg</b></span>
+          </div>
+        </div>
+        <button class="btn btn-m" style="margin-top:8px;font-size:13px" onclick="confirmPending()">
+          ✅ Dodaj ${s.kcal} kcal do dziennika
+        </button>
+      </div>`;
+  } catch(e) {
+    result.innerHTML = `<div style="color:var(--red);font-size:12px">❌ Błąd: ${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '🔍 Przelicz na kalorie';
+  }
+}
+
+function confirmPending() {
+  if (!window._pendingMeal) return;
+  const { kcal, label, macros } = window._pendingMeal;
+  window._pendingMeal = null;
+  confirmDesc(kcal, label, macros);
+}
+
+function confirmDesc(kcal, label, macros) {
+  const p = PROFILES[cur];
+  p.eatenKcal += kcal;
+  if (!p.eatenMacros) p.eatenMacros = {b:0, w:0, t:0, blonnik:0, zelaz:0, wapn:0};
+  if (macros) {
+    p.eatenMacros.b += Math.round(macros.b || 0);
+    p.eatenMacros.w += Math.round(macros.w || 0);
+    p.eatenMacros.t += Math.round(macros.t || 0);
+    p.eatenMacros.blonnik = +(( p.eatenMacros.blonnik || 0) + (macros.blonnik || 0)).toFixed(1);
+    p.eatenMacros.zelaz = +(( p.eatenMacros.zelaz || 0) + (macros.zelaz || 0)).toFixed(1);
+    p.eatenMacros.wapn = Math.round((p.eatenMacros.wapn || 0) + (macros.wapn || 0));
+  }
+  p.eatenLog.push({ kcal, time: new Date().toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'}), label });
+  document.getElementById('desc-input').value = '';
+  document.getElementById('desc-result').innerHTML = `<div style="color:var(--green);font-size:13px;padding:8px">✅ Dodano! B:${Math.round(macros?.b||0)}g W:${Math.round(macros?.w||0)}g T:${Math.round(macros?.t||0)}g | 🌾${macros?.blonnik||0}g 🔴${macros?.zelaz||0}mg 🦷${macros?.wapn||0}mg</div>`;
+  updateDash();
+  renderEatenLog();
+  setTimeout(() => { const el=document.getElementById('desc-result'); if(el) el.innerHTML = ''; }, 2000);
+}
+
+// ===================== API KEY =====================
+// Szyfrowanie XOR z PINem - klucz nigdy nie trafia do GitHub
+const _PIN = '2480';
+
+function xorEncrypt(str, key) {
+  let result = '';
+  for (let i = 0; i < str.length; i++) {
+    result += String.fromCharCode(str.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+  }
+  return btoa(result);
+}
+
+function xorDecrypt(encoded, key) {
+  try {
+    const str = atob(encoded);
+    let result = '';
+    for (let i = 0; i < str.length; i++) {
+      result += String.fromCharCode(str.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+    }
+    return result;
+  } catch(e) { return ''; }
+}
+
+function saveApiKey(key) {
+  const encrypted = xorEncrypt(key, _PIN);
+  try { localStorage.setItem('fc_ak', encrypted); } catch(e) {}
+  try { sessionStorage.setItem('fc_ak', encrypted); } catch(e) {}
+  // Cookie na 365 dni
+  const d = new Date();
+  d.setTime(d.getTime() + 365*24*60*60*1000);
+  document.cookie = 'fc_ak=' + encodeURIComponent(encrypted) + ';expires=' + d.toUTCString() + ';path=/;SameSite=Lax';
+}
+
+function getApiKey() {
+  let encrypted = null;
+  try { encrypted = localStorage.getItem('fc_ak'); } catch(e) {}
+  if (!encrypted) { try { encrypted = sessionStorage.getItem('fc_ak'); } catch(e) {} }
+  if (!encrypted) {
+    const m = document.cookie.match(/fc_ak=([^;]+)/);
+    if (m) encrypted = decodeURIComponent(m[1]);
+  }
+  if (!encrypted) return '';
+  return xorDecrypt(encrypted, _PIN);
+}
+
+function submitApiKey() {
+  const key = document.getElementById('api-key-input').value.trim();
+  if (!key.startsWith('sk-ant-')) {
+    document.getElementById('api-key-error').textContent = '❌ Klucz musi zaczynać się od sk-ant-';
+    return;
+  }
+  saveApiKey(key);
+  document.getElementById('api-modal').style.display = 'none';
+  document.getElementById('header-sub').textContent = '✅ Gotowe!';
+  setTimeout(() => {
+    document.getElementById('header-sub').textContent = 'Asystent diety — Mateusz & Madzik';
+  }, 1500);
+}
+
+function showApiModal() {
+  document.getElementById('api-modal').style.display = 'flex';
+  const existing = getApiKey();
+  if (existing) document.getElementById('api-key-input').value = existing;
+}
+
+function checkApiKey() {
+  if (!getApiKey()) {
+    document.getElementById('api-modal').style.display = 'flex';
+    setTimeout(() => {
+      const el = document.getElementById('api-key-input');
+      if (el) el.focus();
+    }, 100);
+  }
+}
+
+// ===================== LOCALSTORAGE =====================
+const LS_KEY = 'fitcoach_v1';
+
+
+
+function saveToStorage() {
+  try {
+    const toSave = {
+      mateusz: {
+        data: PROFILES.mateusz.data,
+        history: PROFILES.mateusz.history,
+        eatenKcal: PROFILES.mateusz.eatenKcal,
+        eatenMacros: PROFILES.mateusz.eatenMacros,
+        eatenLog: PROFILES.mateusz.eatenLog,
+        mealHistory: PROFILES.mateusz.mealHistory || [],
+        chat: PROFILES.mateusz.chat.slice(-20)
+      },
+      madzik: {
+        data: PROFILES.madzik.data,
+        history: PROFILES.madzik.history,
+        eatenKcal: PROFILES.madzik.eatenKcal,
+        eatenMacros: PROFILES.madzik.eatenMacros,
+        eatenLog: PROFILES.madzik.eatenLog,
+        mealHistory: PROFILES.madzik.mealHistory || [],
+        chat: PROFILES.madzik.chat.slice(-20)
+      },
+      savedAt: new Date().toISOString(),
+      savedDay: todayStr()
+    };
+    const data = JSON.stringify(toSave);
+    try { localStorage.setItem(LS_KEY, data); } catch(e) {}
+    try { sessionStorage.setItem(LS_KEY, data); } catch(e) {}
+    try { setCookie(LS_KEY, data, 30); } catch(e) {}
+    showSaveIndicator();
+  } catch(e) {
+    console.warn('localStorage save failed:', e);
+  }
+}
+
+function resetDailyData(profileKey) {
+  const p = PROFILES[profileKey];
+  // Zapisz dzisiejszy dziennik do historii posiłków zanim wyczyścimy
+  if (p.eatenLog && p.eatenLog.length > 0) {
+    if (!p.mealHistory) p.mealHistory = [];
+    p.mealHistory.push({
+      dzien: todayStr(),
+      posilki: [...p.eatenLog],
+      suma: {
+        kcal: p.eatenKcal,
+        ...p.eatenMacros
+      }
+    });
+    // Zachowaj max 60 dni
+    if (p.mealHistory.length > 60) p.mealHistory = p.mealHistory.slice(-60);
+  }
+  p.eatenKcal = 0;
+  p.eatenLog = [];
+  p.eatenMacros = {b:0, w:0, t:0, blonnik:0, zelaz:0, wapn:0};
+  p.data.spalone_kcal = null;
+  p.data.cwiczenie_min = null;
+}
+
+function loadFromStorage() {
+  try {
+    let raw = null;
+    try { raw = localStorage.getItem(LS_KEY); } catch(e) {}
+    if (!raw) { try { raw = sessionStorage.getItem(LS_KEY); } catch(e) {} }
+    if (!raw) { try { raw = getCookie(LS_KEY); } catch(e) {} }
+    if (!raw) return false;
+    const saved = JSON.parse(raw);
+    const isNewDay = saved.savedDay && saved.savedDay !== todayStr();
+
+    if (saved.mateusz) {
+      Object.assign(PROFILES.mateusz, saved.mateusz);
+    }
+    if (saved.madzik) {
+      Object.assign(PROFILES.madzik, saved.madzik);
+    }
+
+    // Nowy dzień — reset danych dziennych, zachowaj historię
+    if (isNewDay) {
+      resetDailyData('mateusz');
+      resetDailyData('madzik');
+      saveToStorage();
+      return 'newday';
+    }
+    return true;
+  } catch(e) {
+    console.warn('localStorage load failed:', e);
+    return false;
+  }
+}
+
+function clearStorage() {
+  if (confirm('Usunąć wszystkie zapisane dane? Tego nie można cofnąć.')) {
+    localStorage.removeItem(LS_KEY);
+    location.reload();
+  }
+}
+
+function showSaveIndicator() {
+  const badge = document.getElementById('header-sub');
+  if (!badge) return;
+  const prev = badge.textContent;
+  badge.textContent = '✅ Zapisano';
+  badge.style.color = 'var(--green)';
+  setTimeout(() => {
+    badge.textContent = prev;
+    badge.style.color = '';
+  }, 1500);
+}
+
+// Auto-save po każdej zmianie danych
+const _origAddEaten = addEaten;
+addEaten = function() { _origAddEaten(); saveToStorage(); };
+
+const _origResetEaten = resetEaten;
+resetEaten = function() { _origResetEaten(); saveToStorage(); };
+
+const _origSaveManual = saveManual;
+saveManual = function() { _origSaveManual(); saveToStorage(); };
+
+const _origSaveWatch = saveWatch;
+saveWatch = function() { _origSaveWatch(); saveToStorage(); };
+
+const _origConfirmDesc = confirmDesc;
+confirmDesc = function(kcal, label, macros) { _origConfirmDesc(kcal, label, macros); saveToStorage(); };
+
+// ===================== INIT =====================
+checkApiKey();
+const loaded = loadFromStorage();
+updateDash();
+renderChat();
+renderHistory();
+renderEatenLog();
+
+// Pokaż info o załadowaniu
+const badge = document.getElementById('header-sub');
+if (badge) {
+  if (loaded === 'newday') {
+    badge.textContent = '🌅 Nowy dzień — liczniki zresetowane!';
+    badge.style.color = 'var(--accent-m)';
+    setTimeout(() => {
+      badge.textContent = 'Asystent diety — Mateusz & Madzik';
+      badge.style.color = '';
+    }, 3000);
+  } else if (loaded) {
+    badge.textContent = '💾 Dane załadowane';
+    badge.style.color = 'var(--green)';
+    setTimeout(() => {
+      badge.textContent = 'Asystent diety — Mateusz & Madzik';
+      badge.style.color = '';
+    }, 2000);
+  }
+}
+</script>
+</body>
+</html>
