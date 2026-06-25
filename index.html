@@ -268,18 +268,33 @@
     </div>
 
     <div class="card">
-      <div class="card-title">⌚ Zegarek — spalone kalorie</div>
+      <div class="card-title">⌚ Zegarek — aktywność dziś</div>
+
+      <!-- Typ aktywności -->
+      <div style="font-size:10px;color:var(--muted);margin-bottom:6px">Typ aktywności</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px" id="activity-btns">
+        <button onclick="selectActivity('🏃 Bieg')" class="act-btn" style="padding:7px 12px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:12px;cursor:pointer">🏃 Bieg</button>
+        <button onclick="selectActivity('🏋️ Trening siłowy')" class="act-btn" style="padding:7px 12px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:12px;cursor:pointer">🏋️ Trening siłowy</button>
+        <button onclick="selectActivity('🚴 Rower')" class="act-btn" style="padding:7px 12px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:12px;cursor:pointer">🚴 Rower</button>
+        <button onclick="selectActivity('🏊 Pływanie')" class="act-btn" style="padding:7px 12px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:12px;cursor:pointer">🏊 Pływanie</button>
+        <button onclick="selectActivity('🚶 Spacer')" class="act-btn" style="padding:7px 12px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:12px;cursor:pointer">🚶 Spacer</button>
+        <button onclick="selectActivity('⚽ Sport')" class="act-btn" style="padding:7px 12px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:12px;cursor:pointer">⚽ Sport</button>
+        <button onclick="selectActivity('🧘 Joga/Stretching')" class="act-btn" style="padding:7px 12px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:12px;cursor:pointer">🧘 Joga/Stretching</button>
+        <button onclick="selectActivity('📊 Tylko zegarek')" class="act-btn" style="padding:7px 12px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:12px;cursor:pointer">📊 Tylko zegarek</button>
+      </div>
+      <input type="hidden" id="f-activity" value="">
+
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
         <div>
           <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Spalone kcal</div>
           <input type="number" id="f-spalone" placeholder="1246" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:14px;outline:none">
         </div>
         <div>
-          <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Ćwiczenia (min)</div>
-          <input type="number" id="f-cwiczenie" placeholder="125" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:14px;outline:none">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Czas (min)</div>
+          <input type="number" id="f-cwiczenie" placeholder="60" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:14px;outline:none">
         </div>
       </div>
-      <button class="btn btn-m" onclick="saveWatch()">💾 Zapisz dane zegarka</button>
+      <button class="btn btn-m" onclick="saveWatch()">💾 Zapisz aktywność</button>
       <div id="watch-result" style="margin-top:8px;font-size:13px"></div>
     </div>
   </div>
@@ -418,7 +433,7 @@ function updateDash() {
   set('s-miesnie', d.miesnie_kg ? d.miesnie_kg.toFixed(1) : '—');
   set('s-bmr', d.bmr || '—');
   set('s-spalone', d.spalone_kcal ? d.spalone_kcal.toLocaleString() : '—');
-  set('s-cwiczenie', d.cwiczenie_min ? `⏱ ${d.cwiczenie_min} min` : 'Brak danych zegarka');
+  set('s-cwiczenie', d.cwiczenie_min ? `${d.aktywnosc||'Aktywność'} ⏱ ${d.cwiczenie_min} min` : (d.spalone_kcal ? 'Spalone z zegarka' : 'Brak danych zegarka'));
   set('cal-goal-disp', G ? `Cel: ${G} kcal` : 'Cel: —');
   set('cal-tdee-disp', T ? `TDEE: ${T} kcal` : 'TDEE: —');
   set('cal-eaten-lbl', `Zjedzone: ${E} kcal`);
@@ -618,7 +633,7 @@ function systemPrompt() {
 DANE CIAŁA (${d.data||'brak pomiaru'}):
 Waga: ${d.waga||'?'}kg | Tłuszcz: ${d.tluszcz_proc||'?'}% | Mięśnie: ${d.miesnie_kg||'?'}kg
 BMR: ${d.bmr||'?'} kcal | TDEE: ${T||'?'} kcal | Cel: ${G||'?'} kcal
-Spalone zegarek: ${d.spalone_kcal||'brak'} kcal
+Spalone zegarek: ${d.spalone_kcal||'brak'} kcal${d.aktywnosc ? ' ('+d.aktywnosc+')' : ''}
 
 POSTĘP DZIŚ:
 Kalorie: ${p.eatenKcal}/${G||'?'} kcal | Pozostało: ${G?G-p.eatenKcal:'?'} kcal
@@ -797,10 +812,21 @@ function saveManual() {
   ['f-data','f-waga','f-tluszcz','f-miesnie','f-bmr','f-tluszcz-kg'].forEach(id => document.getElementById(id).value = '');
 }
 
+function selectActivity(type) {
+  document.getElementById('f-activity').value = type;
+  document.querySelectorAll('.act-btn').forEach(btn => {
+    const isSelected = btn.textContent.trim() === type;
+    btn.style.borderColor = isSelected ? 'var(--accent-m)' : 'var(--border)';
+    btn.style.background = isSelected ? 'rgba(79,195,247,0.12)' : 'var(--surface2)';
+    btn.style.color = isSelected ? 'var(--accent-m)' : 'var(--muted)';
+  });
+}
+
 function saveWatch() {
   const p = PROFILES[cur];
   const spalone = parseInt(document.getElementById('f-spalone').value);
   const cwiczenie = parseInt(document.getElementById('f-cwiczenie').value);
+  const activity = document.getElementById('f-activity').value || 'Aktywność';
 
   if (!spalone) {
     document.getElementById('watch-result').innerHTML = '<span style="color:var(--red)">❌ Podaj spalone kcal</span>';
@@ -809,14 +835,23 @@ function saveWatch() {
 
   p.data.spalone_kcal = spalone;
   p.data.cwiczenie_min = cwiczenie || null;
+  p.data.aktywnosc = activity;
   if (p.history.length) {
     p.history[p.history.length-1].spalone_kcal = spalone;
     p.history[p.history.length-1].cwiczenie_min = cwiczenie || null;
+    p.history[p.history.length-1].aktywnosc = activity;
   }
 
   updateDash();
-  document.getElementById('watch-result').innerHTML = `<span style="color:var(--green)">✅ Zapisano: ${spalone} kcal spalonych!</span>`;
+  const timeInfo = cwiczenie ? ` | ${cwiczenie} min` : '';
+  document.getElementById('watch-result').innerHTML = `<span style="color:var(--green)">✅ ${activity} — ${spalone} kcal${timeInfo}</span>`;
   ['f-spalone','f-cwiczenie'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-activity').value = '';
+  document.querySelectorAll('.act-btn').forEach(btn => {
+    btn.style.borderColor = 'var(--border)';
+    btn.style.background = 'var(--surface2)';
+    btn.style.color = 'var(--muted)';
+  });
 }
 
 // ===================== EDYCJA HISTORII =====================
