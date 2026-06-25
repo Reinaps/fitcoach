@@ -603,20 +603,30 @@ async function analyzeImage(type) {
 function systemPrompt() {
   const p = PROFILES[cur], d = p.data;
   const T = tdee(p), G = goal(p);
+  const em = p.eatenMacros || {b:0, w:0, t:0, blonnik:0, zelaz:0, wapn:0};
+  const protGoal = d.waga ? Math.round(d.waga*2) : '?';
+  const fatGoal = G ? Math.round(G*0.28/9) : '?';
+  const carbGoal = G && d.waga ? Math.round(Math.max(0, G - (d.waga*2*4) - (G*0.28))/4) : '?';
   const hist = p.history.length > 1
-    ? '\nHISTORIA:\n' + p.history.map(h=>`  ${h.data}: ${h.waga}kg, tłuszcz ${h.tluszcz_proc}%, mięśnie ${h.miesnie_kg}kg`).join('\n')
+    ? '\nHISTORIA:\n' + p.history.slice(-5).map(h=>`  ${h.data}: ${h.waga}kg, tłuszcz ${h.tluszcz_proc}%, mięśnie ${h.miesnie_kg}kg`).join('\n')
     : '';
-  return `Jesteś asystentem dietetycznym dla ${p.name} (${p.gender==='M'?'mężczyzna':'kobieta'}, ${p.age}l, ${p.height}cm, umiarkowanie aktywny/a).
+  const mealLog = p.eatenLog && p.eatenLog.length > 0
+    ? '\nDZIŚ ZJEDZONE:\n' + p.eatenLog.map(e=>`  ${e.time} — ${e.label||'posiłek'} (${e.kcal} kcal)`).join('\n')
+    : '';
+  return `Jesteś asystentem dietetycznym dla ${p.name} (${p.gender==='M'?'mężczyzna':'kobieta'}, ${p.age}l, ${p.height}cm).
 
-DANE (${d.data||'brak pomiaru'}):
-Waga: ${d.waga||'?'}kg | Tłuszcz: ${d.tluszcz_proc||'?'}% (${d.tluszcz_kg||'?'}kg) | Mięśnie: ${d.miesnie_kg||'?'}kg
-BMR: ${d.bmr||'?'} kcal | TDEE: ${T||'?'} kcal | Cel: ${G||'?'} kcal (deficyt ${p.gender==='M'?400:300} kcal)
-Spalone zegarek: ${d.spalone_kcal||'brak'} kcal | Ćwiczenia: ${d.cwiczenie_min||'?'} min
-Zjedzone dziś: ${p.eatenKcal} kcal | Pozostało: ${G?G-p.eatenKcal:'?'} kcal
-Cel białka: min ${d.waga?Math.round(d.waga*2):'?'}g/dzień
-${p.prefs ? '\nPREFERENCJE:\n'+p.prefs : ''}${hist}
+DANE CIAŁA (${d.data||'brak pomiaru'}):
+Waga: ${d.waga||'?'}kg | Tłuszcz: ${d.tluszcz_proc||'?'}% | Mięśnie: ${d.miesnie_kg||'?'}kg
+BMR: ${d.bmr||'?'} kcal | TDEE: ${T||'?'} kcal | Cel: ${G||'?'} kcal
+Spalone zegarek: ${d.spalone_kcal||'brak'} kcal
 
-Odpowiadaj po polsku. Bądź konkretny — do każdego proponowanego posiłku podaj kcal i gramy makro (B/W/T). Priorytet: wysokie białko, zachowanie mięśni.`;
+POSTĘP DZIŚ:
+Kalorie: ${p.eatenKcal}/${G||'?'} kcal | Pozostało: ${G?G-p.eatenKcal:'?'} kcal
+Białko: ${em.b}g/${protGoal}g | Węgle: ${em.w}g/${carbGoal}g | Tłuszcz: ${em.t}g/${fatGoal}g
+Błonnik: ${em.blonnik||0}g/${p.gender==='M'?30:25}g | Żelazo: ${em.zelaz||0}mg/${p.gender==='M'?10:18}mg | Wapń: ${em.wapn||0}mg/1000mg
+${mealLog}${p.prefs ? '\nPREFERENCJE:\n'+p.prefs : ''}${hist}
+
+Odpowiadaj po polsku. Podaj kcal i makro do każdego proponowanego posiłku. Uwzględniaj co już zjedzone i ile zostało do celu. Priorytet: białko, deficyt kaloryczny, zachowanie mięśni.`;
 }
 
 async function sendChat() {
