@@ -244,15 +244,15 @@
         </div>
         <div>
           <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Waga (kg)</div>
-          <input type="number" id="f-waga" placeholder="73.9" step="0.1" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:14px;outline:none">
+          <input type="number" id="f-waga" placeholder="73.9" step="0.1" inputmode="decimal" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:14px;outline:none">
         </div>
         <div>
           <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Tkanka tłuszczowa (%)</div>
-          <input type="number" id="f-tluszcz" placeholder="17.7" step="0.1" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:14px;outline:none">
+          <input type="number" id="f-tluszcz" placeholder="17.7" step="0.1" inputmode="decimal" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:14px;outline:none">
         </div>
         <div>
           <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Masa mięśniowa (kg)</div>
-          <input type="number" id="f-miesnie" placeholder="57.7" step="0.1" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:14px;outline:none">
+          <input type="number" id="f-miesnie" placeholder="57.7" step="0.1" inputmode="decimal" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:14px;outline:none">
         </div>
         <div>
           <div style="font-size:10px;color:var(--muted);margin-bottom:4px">BMR (kcal)</div>
@@ -260,7 +260,7 @@
         </div>
         <div>
           <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Tłuszcz (kg)</div>
-          <input type="number" id="f-tluszcz-kg" placeholder="13.1" step="0.1" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:14px;outline:none">
+          <input type="number" id="f-tluszcz-kg" placeholder="13.1" step="0.1" inputmode="decimal" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:14px;outline:none">
         </div>
       </div>
       <button class="btn btn-m" onclick="saveManual()">💾 Zapisz pomiar wagi</button>
@@ -778,17 +778,32 @@ function renderHistory() {
 }
 
 // ===================== ZAPIS RĘCZNY =====================
+function getFieldVal(id, type) {
+  const el = document.getElementById(id);
+  if (!el) return null;
+  // Safari fix: try multiple ways to get value
+  const raw = el.value || el.getAttribute('value') || '';
+  if (type === 'float') return parseFloat(raw.replace(',', '.')) || null;
+  if (type === 'int') return parseInt(raw) || null;
+  return raw.trim();
+}
+
 function saveManual() {
   const p = PROFILES[cur];
-  const data = document.getElementById('f-data').value || new Date().toLocaleDateString('pl-PL');
-  const waga = parseFloat(document.getElementById('f-waga').value);
-  const tluszcz = parseFloat(document.getElementById('f-tluszcz').value);
-  const miesnie = parseFloat(document.getElementById('f-miesnie').value);
-  const bmr = parseInt(document.getElementById('f-bmr').value);
-  const tluszcz_kg = parseFloat(document.getElementById('f-tluszcz-kg').value);
+  const data = getFieldVal('f-data', 'str') || new Date().toLocaleDateString('pl-PL');
+  const waga = getFieldVal('f-waga', 'float');
+  const tluszcz = getFieldVal('f-tluszcz', 'float');
+  const miesnie = getFieldVal('f-miesnie', 'float');
+  const bmr = getFieldVal('f-bmr', 'int');
+  const tluszcz_kg = getFieldVal('f-tluszcz-kg', 'float');
+
+  // Debug info dla Safari
+  console.log('saveManual values:', {data, waga, tluszcz, miesnie, bmr});
 
   if (!waga || !tluszcz || !miesnie || !bmr) {
-    document.getElementById('manual-result').innerHTML = '<span style="color:var(--red)">❌ Wypełnij przynajmniej: wagę, % tłuszczu, mięśnie i BMR</span>';
+    document.getElementById('manual-result').innerHTML = 
+      '<span style="color:var(--red)">❌ Wypełnij przynajmniej: wagę, % tłuszczu, mięśnie i BMR</span>' +
+      `<div style="font-size:10px;color:var(--muted);margin-top:4px">Odczytano: waga=${waga}, tłuszcz=${tluszcz}, mięśnie=${miesnie}, BMR=${bmr}</div>`;
     return;
   }
 
